@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 // Add paths that don't require authentication
-const publicPaths = ['/customer/login', '/customer/register', '/customer'];
+const publicPaths = ['/login', '/register', '/'];
 
 export default function AuthProvider({
     children,
@@ -47,12 +47,12 @@ export default function AuthProvider({
                     !publicPaths.some((path) => pathname.startsWith(path))
                 ) {
                     // Only redirect if we're not on a public path
-                    router.push('/customer/login');
+                    router.push('/login');
                 }
             } catch (error) {
                 console.error('Auth verification error:', error);
                 if (!publicPaths.some((path) => pathname.startsWith(path))) {
-                    router.push('/customer/login');
+                    router.push('/login');
                 }
             } finally {
                 setIsLoading(false);
@@ -61,10 +61,6 @@ export default function AuthProvider({
 
         verifyAuth();
     }, [router, pathname]);
-
-    if (isLoading) {
-        return <div>Loading...</div>;
-    }
 
     return (
         <AuthContext.Provider value={{ user, isLoading }}>

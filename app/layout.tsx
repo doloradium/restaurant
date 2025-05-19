@@ -1,26 +1,30 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+'use client';
+
+import { usePathname } from 'next/navigation';
+import AuthProvider from './AuthProvider';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 import './globals.css';
-import { Toaster } from 'react-hot-toast';
 
-const inter = Inter({ subsets: ['latin'] });
-
-export const metadata: Metadata = {
-    title: 'Mosaic Sushi',
-    description: 'Authentic Japanese cuisine',
-};
+// Add paths that don't require authentication
+const publicPaths = ['/login', '/register', '/', '/menu', '/about', '/contact'];
 
 export default function RootLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const pathname = usePathname();
+
     return (
-        <html lang='en' suppressHydrationWarning>
-            <body className={inter.className}>
-                <div className='min-h-screen flex flex-col'>
-                    <main className='flex-1'>{children}</main>
-                    <Toaster position='top-center' />
+        <html lang='en'>
+            <body>
+                <div className='min-h-screen bg-gray-50'>
+                    <AuthProvider>
+                        <Header />
+                        {children}
+                        <Footer />
+                    </AuthProvider>
                 </div>
             </body>
         </html>

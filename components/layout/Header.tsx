@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FaUser, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
-import { useAuth } from '@/app/customer/AuthProvider';
+import { useAuth } from '@/app/AuthProvider';
 
 export default function Header() {
     const { user, isLoading } = useAuth();
@@ -20,7 +20,7 @@ export default function Header() {
         if (isLoggedIn) {
             return (
                 <Link
-                    href='/customer/profile'
+                    href='/profile'
                     className='flex items-center text-gray-700 hover:text-red-600'
                 >
                     <FaUser className='mr-1' />
@@ -32,13 +32,13 @@ export default function Header() {
         return (
             <div className='flex items-center space-x-4'>
                 <Link
-                    href='/customer/login'
+                    href='/login'
                     className='text-gray-700 hover:text-red-600'
                 >
                     Вход
                 </Link>
                 <Link
-                    href='/customer/register'
+                    href='/register'
                     className='bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition duration-200'
                 >
                     Регистрация
@@ -100,7 +100,7 @@ export default function Header() {
                     <div className='hidden lg:flex items-center space-x-6'>
                         {renderAuthButtons()}
                         <Link
-                            href='/customer/cart'
+                            href='/cart'
                             className='flex items-center text-gray-700 hover:text-red-600 relative'
                         >
                             <FaShoppingCart size={20} />
@@ -149,7 +149,7 @@ export default function Header() {
                             {!isLoading &&
                                 (isLoggedIn ? (
                                     <Link
-                                        href='/customer/profile'
+                                        href='/profile'
                                         className='flex items-center text-gray-700 hover:text-red-600 py-2'
                                         onClick={() => setIsMenuOpen(false)}
                                     >
@@ -159,14 +159,14 @@ export default function Header() {
                                 ) : (
                                     <>
                                         <Link
-                                            href='/customer/login'
+                                            href='/login'
                                             className='text-gray-700 hover:text-red-600 py-2'
                                             onClick={() => setIsMenuOpen(false)}
                                         >
                                             Вход
                                         </Link>
                                         <Link
-                                            href='/customer/register'
+                                            href='/register'
                                             className='text-gray-700 hover:text-red-600 py-2'
                                             onClick={() => setIsMenuOpen(false)}
                                         >
@@ -175,7 +175,7 @@ export default function Header() {
                                     </>
                                 ))}
                             <Link
-                                href='/customer/cart'
+                                href='/cart'
                                 className='flex items-center text-gray-700 hover:text-red-600 py-2'
                                 onClick={() => setIsMenuOpen(false)}
                             >

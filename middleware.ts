@@ -15,9 +15,8 @@ const publicPaths = [
     '/api/items',
     '/api/reviews',
     '/api/categories',
-    '/customer/login',
-    '/customer/register',
-    '/customer',
+    '/login',
+    '/register',
     '/menu',
     '/about',
     '/contact',
@@ -27,11 +26,11 @@ const publicPaths = [
 const protectedPaths = [
     '/api/admin',
     '/admin',
-    '/customer/profile',
-    '/customer/cart',
-    '/customer/checkout',
-    '/customer/confirmation',
-    '/customer/orders',
+    '/profile',
+    '/cart',
+    '/checkout',
+    '/confirmation',
+    '/orders',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -58,9 +57,7 @@ export async function middleware(request: NextRequest) {
         // If no tokens, redirect to login
         if (!accessToken && !refreshToken) {
             console.log('No tokens found, redirecting to login');
-            return NextResponse.redirect(
-                new URL('/customer/login', request.url)
-            );
+            return NextResponse.redirect(new URL('/login', request.url));
         }
 
         // Verify access token
@@ -115,7 +112,7 @@ export async function middleware(request: NextRequest) {
 
         // Both tokens are invalid, redirect to login
         console.log('Both tokens are invalid, redirecting to login');
-        return NextResponse.redirect(new URL('/customer/login', request.url));
+        return NextResponse.redirect(new URL('/login', request.url));
     }
 
     return NextResponse.next();
@@ -126,10 +123,10 @@ export const config = {
         // Only match specific paths that need middleware
         '/api/admin/:path*',
         '/admin/:path*',
-        '/customer/profile/:path*',
-        '/customer/cart/:path*',
-        '/customer/checkout/:path*',
-        '/customer/confirmation/:path*',
-        '/customer/orders/:path*',
+        '/profile/:path*',
+        '/cart/:path*',
+        '/checkout/:path*',
+        '/confirmation/:path*',
+        '/orders/:path*',
     ],
 };
