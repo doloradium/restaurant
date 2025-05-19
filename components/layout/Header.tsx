@@ -1,0 +1,195 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { FaUser, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
+import { useAuth } from '@/app/customer/AuthProvider';
+
+export default function Header() {
+    const { user, isLoading } = useAuth();
+    const isLoggedIn = !!user;
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const cartItemsCount = 0;
+
+    // Don't show auth buttons while loading
+    const renderAuthButtons = () => {
+        if (isLoading) {
+            return null;
+        }
+
+        if (isLoggedIn) {
+            return (
+                <Link
+                    href='/customer/profile'
+                    className='flex items-center text-gray-700 hover:text-red-600'
+                >
+                    <FaUser className='mr-1' />
+                    <span>Профиль</span>
+                </Link>
+            );
+        }
+
+        return (
+            <div className='flex items-center space-x-4'>
+                <Link
+                    href='/customer/login'
+                    className='text-gray-700 hover:text-red-600'
+                >
+                    Вход
+                </Link>
+                <Link
+                    href='/customer/register'
+                    className='bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition duration-200'
+                >
+                    Регистрация
+                </Link>
+            </div>
+        );
+    };
+
+    return (
+        <header className='bg-white shadow-md'>
+            <div className='container mx-auto px-4 py-3'>
+                <div className='flex justify-between items-center'>
+                    {/* Логотип */}
+                    <Link href='/' className='text-2xl font-bold text-red-600'>
+                        Mosaic Sushi
+                    </Link>
+
+                    {/* Кнопка мобильного меню */}
+                    <button
+                        className='lg:hidden text-gray-600 focus:outline-none'
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    >
+                        {isMenuOpen ? (
+                            <FaTimes size={24} />
+                        ) : (
+                            <FaBars size={24} />
+                        )}
+                    </button>
+
+                    {/* Десктоп навигация */}
+                    <nav className='hidden lg:flex items-center space-x-8'>
+                        <Link
+                            href='/'
+                            className='text-gray-700 hover:text-red-600 transition duration-200'
+                        >
+                            Главная
+                        </Link>
+                        <Link
+                            href='/menu'
+                            className='text-gray-700 hover:text-red-600 transition duration-200'
+                        >
+                            Меню
+                        </Link>
+                        <Link
+                            href='/about'
+                            className='text-gray-700 hover:text-red-600 transition duration-200'
+                        >
+                            О нас
+                        </Link>
+                        <Link
+                            href='/contact'
+                            className='text-gray-700 hover:text-red-600 transition duration-200'
+                        >
+                            Контакты
+                        </Link>
+                    </nav>
+
+                    {/* Десктоп вход и корзина */}
+                    <div className='hidden lg:flex items-center space-x-6'>
+                        {renderAuthButtons()}
+                        <Link
+                            href='/customer/cart'
+                            className='flex items-center text-gray-700 hover:text-red-600 relative'
+                        >
+                            <FaShoppingCart size={20} />
+                            {cartItemsCount > 0 && (
+                                <span className='absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full'>
+                                    {cartItemsCount}
+                                </span>
+                            )}
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Мобильное меню */}
+                {isMenuOpen && (
+                    <div className='lg:hidden mt-4 bg-white pb-4'>
+                        <nav className='flex flex-col space-y-3'>
+                            <Link
+                                href='/'
+                                className='text-gray-700 hover:text-red-600 transition duration-200 py-2'
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Главная
+                            </Link>
+                            <Link
+                                href='/menu'
+                                className='text-gray-700 hover:text-red-600 transition duration-200 py-2'
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Меню
+                            </Link>
+                            <Link
+                                href='/about'
+                                className='text-gray-700 hover:text-red-600 transition duration-200 py-2'
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                О нас
+                            </Link>
+                            <Link
+                                href='/contact'
+                                className='text-gray-700 hover:text-red-600 transition duration-200 py-2'
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                Контакты
+                            </Link>
+                            <hr className='border-gray-200' />
+                            {!isLoading &&
+                                (isLoggedIn ? (
+                                    <Link
+                                        href='/customer/profile'
+                                        className='flex items-center text-gray-700 hover:text-red-600 py-2'
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        <FaUser className='mr-2' />
+                                        <span>Профиль</span>
+                                    </Link>
+                                ) : (
+                                    <>
+                                        <Link
+                                            href='/customer/login'
+                                            className='text-gray-700 hover:text-red-600 py-2'
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            Вход
+                                        </Link>
+                                        <Link
+                                            href='/customer/register'
+                                            className='text-gray-700 hover:text-red-600 py-2'
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            Регистрация
+                                        </Link>
+                                    </>
+                                ))}
+                            <Link
+                                href='/customer/cart'
+                                className='flex items-center text-gray-700 hover:text-red-600 py-2'
+                                onClick={() => setIsMenuOpen(false)}
+                            >
+                                <FaShoppingCart className='mr-2' />
+                                <span>
+                                    Корзина{' '}
+                                    {cartItemsCount > 0 &&
+                                        `(${cartItemsCount})`}
+                                </span>
+                            </Link>
+                        </nav>
+                    </div>
+                )}
+            </div>
+        </header>
+    );
+}

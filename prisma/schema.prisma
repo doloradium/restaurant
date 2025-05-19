@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  surname      String
+  email        String    @unique
+  phoneNumber  String?
+  street       String?
+  house        String?
+  apartment    String?
+  passwordHash String
+  role         String    @default("USER")
+  rating       Float?    @default(0.0)
+  orders       Order[]
+  reviews      Review[]
+}
+
+model Category {
+  id    Int     @id @default(autoincrement())
+  name  String  @unique
+  items Item[]
+}
+
+model Item {
+  id          Int       @id @default(autoincrement())
+  categoryId  Int
+  name        String
+  description String
+  price       Float
+  category    Category  @relation(fields: [categoryId], references: [id])
+  orderItems  OrderItem[]
+  reviews     Review[]
+}
+
+model Order {
+  id           Int         @id @default(autoincrement())
+  userId       Int
+  courierId    Int?
+  paymentType  String
+  isPaid       Boolean     @default(false)
+  isCompleted  Boolean     @default(false)
+  dateOrdered  DateTime    @default(now())
+  dateArrived  DateTime?
+  status       String
+  user         User        @relation(fields: [userId], references: [id])
+  orderItems   OrderItem[]
+}
+
+model OrderItem {
+  orderId   Int
+  itemId    Int
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  item      Item    @relation(fields: [itemId], references: [id])
+  @@id([orderId, itemId])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+  text      String
+  item      Item     @relation(fields: [itemId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+enum Role {
+  USER
+  ADMIN
+  COOK
+  COURIER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
