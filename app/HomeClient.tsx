@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FaStar, FaArrowRight } from 'react-icons/fa';
+import MenuItem from '@/components/menu/MenuItem';
 
 export default function HomeClient({
     categories,
@@ -103,41 +104,16 @@ export default function HomeClient({
                     </div>
                     <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8'>
                         {popularDishes.map((product) => (
-                            <div
+                            <MenuItem
                                 key={product.id}
-                                className='bg-white rounded-lg shadow-md overflow-hidden'
-                            >
-                                <div className='h-56 relative'>
-                                    <div className='h-full w-full bg-gray-300 flex items-center justify-center'>
-                                        <span className='text-sm text-gray-500'>
-                                            Изображение блюда
-                                        </span>
-                                    </div>
-                                    <div className='absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-bold'>
-                                        {product.category?.name ||
-                                            product.category}
-                                    </div>
-                                </div>
-                                <div className='p-4'>
-                                    <h3 className='text-lg font-bold text-gray-800 mb-1'>
-                                        {product.name}
-                                    </h3>
-                                    <p className='text-sm text-gray-600 mb-3'>
-                                        {product.description}
-                                    </p>
-                                    <div className='flex justify-between items-center'>
-                                        <span className='font-bold text-red-600'>
-                                            ${product.price?.toFixed(2)}
-                                        </span>
-                                        <Link
-                                            href={`/menu/${product.id}`}
-                                            className='bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-md text-sm transition duration-200'
-                                        >
-                                            Подробнее
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
+                                id={product.id}
+                                name={product.name}
+                                description={product.description || ''}
+                                price={product.price || 0}
+                                image={product.image}
+                                categoryId={product.categoryId}
+                                categoryName={product.category?.name}
+                            />
                         ))}
                     </div>
                     <div className='mt-10 text-center'>

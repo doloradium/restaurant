@@ -13,6 +13,7 @@ import {
     FaMinus,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { useCart } from '@/app/CartProvider';
 
 export default function MenuItemClient({
     item,
@@ -28,6 +29,7 @@ export default function MenuItemClient({
     const [activeTab, setActiveTab] = useState('description');
     const [isFavorite, setIsFavorite] = useState(false);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const { addToCart } = useCart();
 
     if (!item) {
         return (
@@ -58,9 +60,15 @@ export default function MenuItemClient({
     };
 
     const handleAddToCart = () => {
-        toast.success(
-            `${quantity} ${item.name}${quantity > 1 ? 's' : ''} added to cart!`
-        );
+        addToCart({
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            quantity: quantity,
+            image: item.image,
+            categoryId: item.categoryId || item.category?.id,
+        });
     };
 
     const toggleFavorite = () => {

@@ -15,30 +15,25 @@ const publicPaths = [
     '/api/items',
     '/api/reviews',
     '/api/categories',
+    '/api/yandex/suggest',
+    '/api/yandex/geocode',
     '/login',
     '/register',
     '/menu',
     '/about',
     '/contact',
     '/admin-login',
+    '/',
 ];
 
 // Add paths that require authentication
-const protectedPaths = [
-    '/api/admin',
-    '/admin',
-    '/profile',
-    '/cart',
-    '/checkout',
-    '/confirmation',
-    '/orders',
-];
+const protectedPaths = ['/api/admin', '/admin', '/profile', '/orders'];
 
 export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
     console.log('Middleware processing path:', path);
 
-    // Allow public paths
+    // Allow public paths without any processing
     if (publicPaths.some((publicPath) => path.startsWith(publicPath))) {
         console.log('Path is public, allowing access');
         return NextResponse.next();
@@ -145,9 +140,6 @@ export const config = {
         '/api/admin/:path*',
         '/admin/:path*',
         '/profile/:path*',
-        '/cart/:path*',
-        '/checkout/:path*',
-        '/confirmation/:path*',
         '/orders/:path*',
     ],
 };

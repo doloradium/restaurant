@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FaUser, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
 import { useAuth } from '@/app/AuthProvider';
+import { useCart } from '@/app/CartProvider';
 
 export default function Header() {
     const { user, isLoading } = useAuth();
+    const { totalItems } = useCart();
     const isLoggedIn = !!user;
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const cartItemsCount = 0;
 
     // Don't show auth buttons while loading
     const renderAuthButtons = () => {
@@ -104,9 +105,9 @@ export default function Header() {
                             className='flex items-center text-gray-700 hover:text-red-600 relative'
                         >
                             <FaShoppingCart size={20} />
-                            {cartItemsCount > 0 && (
+                            {totalItems > 0 && (
                                 <span className='absolute -top-2 -right-2 bg-red-600 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full'>
-                                    {cartItemsCount}
+                                    {totalItems}
                                 </span>
                             )}
                         </Link>
@@ -182,8 +183,7 @@ export default function Header() {
                                 <FaShoppingCart className='mr-2' />
                                 <span>
                                     Корзина{' '}
-                                    {cartItemsCount > 0 &&
-                                        `(${cartItemsCount})`}
+                                    {totalItems > 0 && `(${totalItems})`}
                                 </span>
                             </Link>
                         </nav>

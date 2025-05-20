@@ -1,59 +1,46 @@
 import HomeClient from './HomeClient';
+import { prisma } from '@/lib/prisma';
 
-async function getCategories() {
-    try {
-        const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/categories`,
-            {
-                cache: 'no-store',
-            }
-        );
-        if (!res.ok) throw new Error('Failed to fetch categories');
-        return res.json();
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        return [];
-    }
-}
+export default async function Home() {
+    // Fetch categories from API
+    const categoriesResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/categories`,
+        {
+            cache: 'no-store',
+        }
+    );
+    const categories = await categoriesResponse.json();
 
-async function getReviews() {
-    try {
-        const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/reviews`,
-            {
-                cache: 'no-store',
-            }
-        );
-        if (!res.ok) throw new Error('Failed to fetch reviews');
-        return res.json();
-    } catch (error) {
-        console.error('Error fetching reviews:', error);
-        return [];
-    }
-}
+    // Mock data for reviews (in a real app, you'd fetch these from an API as well)
+    const reviews = [
+        {
+            id: 1,
+            name: 'Анна П.',
+            rating: 5,
+            text: 'Лучшие суши, которые я когда-либо пробовала! Свежие ингредиенты и прекрасное обслуживание.',
+        },
+        {
+            id: 2,
+            name: 'Михаил К.',
+            rating: 4,
+            text: 'Отличный выбор и вкусная еда. Немного дороговато, но качество того стоит.',
+        },
+        {
+            id: 3,
+            name: 'Елена С.',
+            rating: 5,
+            text: 'Доставка всегда вовремя, еда свежая и вкусная. Рекомендую всем!',
+        },
+    ];
 
-async function getPopularDishes() {
-    try {
-        const res = await fetch(
-            `${process.env.NEXT_PUBLIC_BASE_URL}/api/items`,
-            {
-                cache: 'no-store',
-            }
-        );
-        if (!res.ok) throw new Error('Failed to fetch popular dishes');
-        return res.json();
-    } catch (error) {
-        console.error('Error fetching popular dishes:', error);
-        return [];
-    }
-}
-
-export default async function HomePage() {
-    const [categories, reviews, popularDishes] = await Promise.all([
-        getCategories(),
-        getReviews(),
-        getPopularDishes(),
-    ]);
+    // Fetch popular dishes from API
+    const itemsResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/items?limit=4`,
+        {
+            cache: 'no-store',
+        }
+    );
+    const popularDishes = await itemsResponse.json();
 
     return (
         <HomeClient
