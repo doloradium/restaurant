@@ -20,6 +20,7 @@ const publicPaths = [
     '/menu',
     '/about',
     '/contact',
+    '/admin-login',
 ];
 
 // Add paths that require authentication
@@ -57,6 +58,12 @@ export async function middleware(request: NextRequest) {
         // If no tokens, redirect to login
         if (!accessToken && !refreshToken) {
             console.log('No tokens found, redirecting to login');
+            // For admin routes, redirect to admin login
+            if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
+                return NextResponse.redirect(
+                    new URL('/admin-login', request.url)
+                );
+            }
             return NextResponse.redirect(new URL('/login', request.url));
         }
 
@@ -99,11 +106,21 @@ export async function middleware(request: NextRequest) {
 
             if (refreshPayload) {
                 console.log(
-                    'Refresh token valid, redirecting to refresh endpoint'
+                    'Refresh token valid, redirecting to login page with refresh needed parameter'
                 );
-                // Refresh token is valid, redirect to refresh endpoint
+                // For admin routes, redirect to admin login
+                if (
+                    path.startsWith('/admin') ||
+                    path.startsWith('/api/admin')
+                ) {
+                    const response = NextResponse.redirect(
+                        new URL('/admin-login?refresh=true', request.url)
+                    );
+                    return response;
+                }
+                // Redirect to login page with parameter instead of directly to refresh endpoint
                 const response = NextResponse.redirect(
-                    new URL('/api/auth/refresh', request.url)
+                    new URL('/login?refresh=true', request.url)
                 );
                 return response;
             }
@@ -112,6 +129,10 @@ export async function middleware(request: NextRequest) {
 
         // Both tokens are invalid, redirect to login
         console.log('Both tokens are invalid, redirecting to login');
+        // For admin routes, redirect to admin login
+        if (path.startsWith('/admin') || path.startsWith('/api/admin')) {
+            return NextResponse.redirect(new URL('/admin-login', request.url));
+        }
         return NextResponse.redirect(new URL('/login', request.url));
     }
 

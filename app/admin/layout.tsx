@@ -1,15 +1,18 @@
 'use client';
 
-import { Admin, Resource } from 'react-admin';
+import { Resource } from 'react-admin';
 import { dataProvider } from './dataProvider';
 import { ItemList, ItemEdit, ItemCreate } from './items';
 import { CategoryList, CategoryEdit, CategoryCreate } from './categories';
 import { UserList, UserEdit, UserCreate } from './users';
 import { ReviewList, ReviewEdit } from './reviews';
 import dynamic from 'next/dynamic';
+import CustomAdmin from './CustomAdmin';
 
-// Dynamically import the Admin component with no SSR
-const AdminComponent = dynamic(() => Promise.resolve(Admin), { ssr: false });
+// Dynamically import the CustomAdmin component with no SSR
+const AdminComponent = dynamic(() => Promise.resolve(CustomAdmin), {
+    ssr: false,
+});
 
 export default function AdminLayout() {
     return (

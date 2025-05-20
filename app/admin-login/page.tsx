@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
-const LoginPage = () => {
+const AdminLoginPage = () => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
@@ -86,8 +85,14 @@ const LoginPage = () => {
                 const data = await response.json();
 
                 if (response.ok) {
-                    toast.success('Successfully logged in!');
-                    router.push('/');
+                    if (data.user && data.user.role === 'ADMIN') {
+                        toast.success('Admin login successful!');
+                        router.push('/admin');
+                    } else {
+                        toast.error(
+                            'This account does not have admin privileges'
+                        );
+                    }
                 } else {
                     toast.error(
                         data.error ||
@@ -104,14 +109,14 @@ const LoginPage = () => {
     });
 
     return (
-        <div className='min-h-screen py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center bg-gray-50'>
+        <div className='min-h-screen py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center bg-gray-100'>
             <div className='max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md'>
                 <div className='text-center'>
                     <h2 className='text-3xl font-bold text-gray-900'>
-                        Welcome Back
+                        Admin Login
                     </h2>
                     <p className='mt-2 text-sm text-gray-600'>
-                        Sign in to your account to continue
+                        Sign in to access the admin dashboard
                     </p>
                 </div>
 
@@ -133,8 +138,8 @@ const LoginPage = () => {
                                     type='email'
                                     autoComplete='email'
                                     required
-                                    className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                                    placeholder='Enter your email'
+                                    className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                                    placeholder='Admin email'
                                     {...formik.getFieldProps('email')}
                                 />
                             </div>
@@ -161,8 +166,8 @@ const LoginPage = () => {
                                     type={showPassword ? 'text' : 'password'}
                                     autoComplete='current-password'
                                     required
-                                    className='appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                                    placeholder='Enter your password'
+                                    className='appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
+                                    placeholder='Admin password'
                                     {...formik.getFieldProps('password')}
                                 />
                                 <div className='absolute inset-y-0 right-0 pr-3 flex items-center'>
@@ -194,27 +199,15 @@ const LoginPage = () => {
                         <button
                             type='submit'
                             disabled={isLoading}
-                            className='w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                            className='w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed'
                         >
-                            {isLoading ? 'Signing in...' : 'Sign in'}
+                            {isLoading ? 'Signing in...' : 'Sign in as Admin'}
                         </button>
                     </div>
                 </form>
-
-                <div className='mt-6 text-center'>
-                    <p className='text-sm text-gray-600'>
-                        Don't have an account?{' '}
-                        <Link
-                            href='/register'
-                            className='font-medium text-red-600 hover:text-red-500'
-                        >
-                            Register now
-                        </Link>
-                    </p>
-                </div>
             </div>
         </div>
     );
 };
 
-export default LoginPage;
+export default AdminLoginPage;
