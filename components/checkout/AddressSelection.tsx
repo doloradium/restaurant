@@ -127,6 +127,47 @@ export default function AddressSelection() {
                         });
                     });
 
+                    // Handle map click to update address
+                    map.events.add('click', function (e: any) {
+                        const coords = e.get('coords');
+                        console.log('Map clicked at coordinates:', coords);
+
+                        // Update placemark position
+                        placemark.geometry.setCoordinates(coords);
+
+                        // Reverse geocode to get address from coordinates
+                        window.ymaps
+                            .geocode(`${coords[0]},${coords[1]}`)
+                            .then((res: any) => {
+                                const firstGeoObject = res.geoObjects.get(0);
+                                if (firstGeoObject) {
+                                    const address =
+                                        firstGeoObject.getAddressLine();
+                                    console.log(
+                                        'Clicked location address:',
+                                        address
+                                    );
+
+                                    // Parse address into components
+                                    const components = parseAddress(address);
+
+                                    // Update form and search query with new address
+                                    setFormData({
+                                        ...formData,
+                                        ...components,
+                                        fullAddress: address,
+                                        coordinates: {
+                                            lat: coords[0],
+                                            lng: coords[1],
+                                        },
+                                    });
+
+                                    // Update the search input field
+                                    setSearchQuery(address);
+                                }
+                            });
+                    });
+
                     setMapInstance(map);
                     setPlacemarkInstance(placemark);
 
@@ -359,6 +400,78 @@ export default function AddressSelection() {
         }
     };
 
+    // Handle GeoJSON response from Yandex API
+    const handleGeoJsonResponse = (geoJson: any) => {
+        try {
+            // Extract first feature from GeoJSON if available
+            if (Array.isArray(geoJson) && geoJson.length > 0) {
+                const feature = geoJson[0];
+
+                if (
+                    feature.geometry &&
+                    feature.geometry.type === 'Point' &&
+                    Array.isArray(feature.geometry.coordinates) &&
+                    feature.geometry.coordinates.length >= 2
+                ) {
+                    // Extract coordinates - note that GeoJSON returns [longitude, latitude]
+                    const lng = feature.geometry.coordinates[0];
+                    const lat = feature.geometry.coordinates[1];
+                    const coords = [lat, lng]; // Yandex Maps uses [lat, lng] format
+
+                    console.log('GeoJSON coordinates extracted:', coords);
+
+                    // Update map and placemark if they exist
+                    if (mapInstance && placemarkInstance) {
+                        mapInstance.setCenter(coords, 16);
+                        placemarkInstance.geometry.setCoordinates(coords);
+
+                        // Use reverse geocoding to get address from coordinates
+                        window.ymaps
+                            .geocode(`${coords[0]},${coords[1]}`)
+                            .then((res: any) => {
+                                const firstGeoObject = res.geoObjects.get(0);
+                                if (firstGeoObject) {
+                                    const address =
+                                        firstGeoObject.getAddressLine();
+                                    const locationName =
+                                        feature.properties.name || '';
+
+                                    // Format address with location name if available
+                                    const formattedAddress = locationName
+                                        ? `${address} (${locationName})`
+                                        : address;
+
+                                    console.log(
+                                        'Formatted address:',
+                                        formattedAddress
+                                    );
+
+                                    // Parse address components
+                                    const components = parseAddress(address);
+
+                                    // Update form data
+                                    setFormData({
+                                        ...formData,
+                                        ...components,
+                                        fullAddress: formattedAddress,
+                                        coordinates: {
+                                            lat: lat,
+                                            lng: lng,
+                                        },
+                                    });
+
+                                    // Update search query
+                                    setSearchQuery(formattedAddress);
+                                }
+                            });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error processing GeoJSON response:', error);
+        }
+    };
+
     // Parse address into components
     const parseAddress = (address: string): Partial<DeliveryAddress> => {
         // Simple parsing logic - in a real app you'd use Yandex's structured address components
@@ -407,6 +520,30 @@ export default function AddressSelection() {
             };
 
             setDeliveryAddress(address);
+        }
+    };
+
+    // Process external GeoJSON data (e.g. from API responses)
+    const processExternalGeoJson = (jsonData: string) => {
+        try {
+            const geoJson = JSON.parse(jsonData);
+            handleGeoJsonResponse(geoJson);
+        } catch (error) {
+            console.error('Error parsing GeoJSON data:', error);
+            setError('Invalid location data format');
+        }
+    };
+
+    // Example of how to use it:
+    // Add a method to accept GeoJSON from an external source (like a paste or API response)
+    const handleGeoJsonPaste = (
+        e: React.ClipboardEvent<HTMLTextAreaElement>
+    ) => {
+        const text = e.clipboardData.getData('text');
+        if (text) {
+            processExternalGeoJson(text);
+            // Prevent default paste behavior
+            e.preventDefault();
         }
     };
 
@@ -490,6 +627,26 @@ export default function AddressSelection() {
                     style={{ height: '300px', width: '100%' }}
                     className='rounded-lg'
                 ></div>
+
+                {/* Hidden textarea for advanced GeoJSON paste functionality */}
+                <div className='mt-2'>
+                    <details className='text-sm text-gray-600'>
+                        <summary className='cursor-pointer font-medium hover:text-red-600'>
+                            Advanced: Paste GeoJSON coordinates
+                        </summary>
+                        <div className='mt-2'>
+                            <textarea
+                                placeholder='Paste GeoJSON data here...'
+                                className='w-full p-2 border border-gray-300 rounded text-xs h-24 font-mono'
+                                onPaste={handleGeoJsonPaste}
+                            ></textarea>
+                            <p className='text-xs text-gray-500 mt-1'>
+                                You can paste GeoJSON data from Yandex API to
+                                quickly set location
+                            </p>
+                        </div>
+                    </details>
+                </div>
             </div>
 
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-6'>
