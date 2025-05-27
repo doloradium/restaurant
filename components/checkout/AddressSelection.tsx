@@ -7,6 +7,8 @@ import Script from 'next/script';
 interface YMaps {
     Map: any;
     Placemark: any;
+    GeoObject: any;
+    Clusterer: any;
     geocode: (address: string) => Promise<any>;
     suggest: (query: string) => Promise<any>;
 }
@@ -14,6 +16,39 @@ interface YMaps {
 declare global {
     interface Window {
         ymaps: YMaps;
+    }
+}
+
+// Add this function after the imports but before the component
+// Helper function to log server responses
+async function logServerResponseByCoords(lat: number, lng: number) {
+    console.log('--------------------------------');
+    console.log('📤 LOGGING SERVER RESPONSE FOR COORDINATES:', { lat, lng });
+
+    try {
+        // Format the URL for the API call
+        const requestUrl = `/api/yandex/search-by-coords?coords=${lat},${lng}`;
+        console.log('📡 REQUEST URL:', requestUrl);
+
+        // Make the API call
+        const response = await fetch(requestUrl);
+        console.log('📥 RAW SERVER RESPONSE:', response);
+
+        // Check if the response is OK
+        if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+        }
+
+        // Parse the JSON
+        const data = await response.json();
+        console.log('🔍 SERVER RESPONSE DATA:', JSON.stringify(data, null, 2));
+
+        return data;
+    } catch (error) {
+        console.error('❌ ERROR getting data from server:', error);
+        return null;
+    } finally {
+        console.log('--------------------------------');
     }
 }
 
@@ -25,7 +60,6 @@ export default function AddressSelection() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [mapInstance, setMapInstance] = useState<any>(null);
-    const [placemarkInstance, setPlacemarkInstance] = useState<any>(null);
     const [scriptUrl, setScriptUrl] = useState<string>('');
     const [isLoadingScript, setIsLoadingScript] = useState(true);
     const mapRef = useRef<HTMLDivElement>(null);
@@ -101,37 +135,32 @@ export default function AddressSelection() {
                         controls: ['zoomControl', 'geolocationControl'],
                     });
 
-                    const placemark = new window.ymaps.Placemark(
-                        [55.76, 37.64],
-                        {},
-                        {
-                            draggable: true,
-                        }
-                    );
+                    // DISABLE PLACEMARKS - Remove the placemark creation code
+                    // This removes the custom placemark
+                    // const placemark = new window.ymaps.Placemark(
+                    //     [55.76, 37.64],
+                    //     {},
+                    //     {
+                    //         draggable: true,
+                    //     }
+                    // );
+                    // map.geoObjects.add(placemark);
 
-                    map.geoObjects.add(placemark);
+                    // Disable all Yandex placemarks by setting up options
+                    map.options.set('yandexMapDisablePoiInteractivity', true);
+                    map.options.set('suppressMapOpenBlock', true);
 
-                    // Handle placemark drag end
-                    placemark.events.add('dragend', function () {
-                        const coordinates = placemark.geometry.getCoordinates();
+                    // Set object manager to not show placemarks/features
+                    const objectManagerOptions = {
+                        clusterize: false,
+                        gridSize: 0,
+                        minClusterSize: 1000000, // Effectively disable clustering by setting a very high number
+                        filter: function () {
+                            return false;
+                        }, // Filter out all objects
+                    };
 
-                        // Geocode the coordinates to get the address
-                        window.ymaps.geocode(coordinates).then((res: any) => {
-                            const firstGeoObject = res.geoObjects.get(0);
-                            if (firstGeoObject) {
-                                const address = firstGeoObject.getAddressLine();
-                                const components = parseAddress(address);
-
-                                setFormData({
-                                    ...formData,
-                                    ...components,
-                                    fullAddress: address,
-                                });
-                            }
-                        });
-                    });
-
-                    // Handle map click to update address - ensure this works for any location
+                    // Modify the map click handler to not use the placemark
                     map.events.add('click', function (e: any) {
                         const coords = e.get('coords');
                         console.log('Map clicked at coordinates:', coords);
@@ -142,24 +171,11 @@ export default function AddressSelection() {
                             lng: coords[1],
                         });
 
-                        // Update placemark position
-                        placemark.geometry.setCoordinates(coords);
-
-                        // Show coordinates in a tooltip nearby the cursor
+                        // No placemark to update
+                        // Instead, just show the coordinates directly in the search field
                         const coordsString = `${coords[0].toFixed(
                             6
                         )}, ${coords[1].toFixed(6)}`;
-
-                        // Create a tooltip balloon with coordinates
-                        placemark.properties.set({
-                            balloonContentHeader: 'Selected Location',
-                            balloonContentBody: `<p>Coordinates: ${coordsString}</p>`,
-                            balloonContentFooter:
-                                '<p>Click "Save Address" to use this location</p>',
-                        });
-
-                        // Open the balloon
-                        placemark.balloon.open();
 
                         // Perform geocoding using our server-side API for more reliable results
                         setIsLoading(true);
@@ -211,14 +227,6 @@ export default function AddressSelection() {
                                         });
                                         addressInput.dispatchEvent(event);
                                     }
-
-                                    // Update the balloon content with the address
-                                    placemark.properties.set({
-                                        balloonContentBody: `
-                                            <p>Coordinates: ${coordsString}</p>
-                                            <p>Address: ${data.address}</p>
-                                        `,
-                                    });
                                 }
                             })
                             .catch((error) => {
@@ -245,192 +253,9 @@ export default function AddressSelection() {
                             });
                     });
 
-                    // Handle placemark click events
-                    placemark.events.add('click', function (e: any) {
-                        const coords = placemark.geometry.getCoordinates();
-
-                        // Set visible coordinates for display in UI
-                        setVisibleCoords({
-                            lat: coords[0],
-                            lng: coords[1],
-                        });
-
-                        // Create a tooltip balloon with coordinates
-                        placemark.properties.set({
-                            balloonContentHeader: 'Selected Location',
-                            balloonContentBody: `<p>Coordinates: ${coords[0].toFixed(
-                                6
-                            )}, ${coords[1].toFixed(6)}</p>`,
-                            balloonContentFooter:
-                                '<p>Click "Save Address" to use this location</p>',
-                        });
-
-                        // Open the balloon
-                        placemark.balloon.open();
-
-                        // Don't propagate the event to the map to avoid duplicate processing
-                        e.stopPropagation();
-                    });
-
-                    // Add this code at the beginning of the map initialization to configure object behavior
-                    map.options.set('objectsClickable', true);
-
-                    // Replace the geoObjects click handler with this simplified version
-                    map.geoObjects.events.add('click', async function (e: any) {
-                        // Get the clicked object
-                        const target = e.get('target');
-                        if (!target) return;
-
-                        try {
-                            // Get the coordinates
-                            const coords = target.geometry.getCoordinates();
-                            console.log('OBJECT CLICKED AT:', coords);
-
-                            // Store coordinates in UI state
-                            setVisibleCoords({
-                                lat: coords[0],
-                                lng: coords[1],
-                            });
-
-                            // Try to get data from the object properties first (direct approach)
-                            let objectName = '';
-                            let objectAddress = '';
-
-                            // Check if this is a business object with properties
-                            if (target.properties) {
-                                // Log all properties for debugging
-                                console.log(
-                                    'Object properties:',
-                                    target.properties.getAll()
-                                );
-
-                                // First try CompanyMetaData (most detailed for businesses)
-                                const companyData =
-                                    target.properties.get('CompanyMetaData');
-                                if (companyData) {
-                                    console.log(
-                                        'CompanyMetaData found:',
-                                        companyData
-                                    );
-                                    objectName = companyData.name || '';
-                                    objectAddress = companyData.address || '';
-                                } else {
-                                    // Try standard properties
-                                    objectName =
-                                        target.properties.get('name') || '';
-                                    objectAddress =
-                                        target.properties.get('description') ||
-                                        target.properties.get('address') ||
-                                        '';
-                                }
-
-                                // If we have a URI, we can use it to get more details
-                                const uriData =
-                                    target.properties.get('URIMetaData');
-                                if (uriData && uriData.URI && uriData.URI.uri) {
-                                    console.log(
-                                        'Organization URI found:',
-                                        uriData.URI.uri
-                                    );
-                                    try {
-                                        // We have a direct organization URI - use our API to get details
-                                        const encodedUri = encodeURIComponent(
-                                            uriData.URI.uri
-                                        );
-                                        const response = await fetch(
-                                            `/api/yandex/org-details?uri=${encodedUri}`
-                                        );
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            console.log(
-                                                'Organization API response:',
-                                                data
-                                            );
-
-                                            // Use this data if it's valid
-                                            if (data.name && data.address) {
-                                                objectName = data.name;
-                                                objectAddress = data.address;
-                                            }
-                                        }
-                                    } catch (uriError) {
-                                        console.error(
-                                            'Error fetching org details:',
-                                            uriError
-                                        );
-                                    }
-                                }
-                            }
-
-                            // If we couldn't get direct data, use our geocoding API as fallback
-                            if (!objectName && !objectAddress) {
-                                console.log(
-                                    'No direct data found, using geocoding API'
-                                );
-                                try {
-                                    const response = await fetch(
-                                        `/api/yandex/search-by-coords?coords=${coords[0]},${coords[1]}`
-                                    );
-                                    if (response.ok) {
-                                        const data = await response.json();
-                                        console.log(
-                                            'Geocoding API response:',
-                                            data
-                                        );
-                                        if (data.address) {
-                                            objectAddress = data.address;
-                                        }
-                                    }
-                                } catch (geocodeError) {
-                                    console.error(
-                                        'Error geocoding coordinates:',
-                                        geocodeError
-                                    );
-                                }
-                            }
-
-                            // Format the address string for the input field
-                            let displayText = '';
-                            if (objectName && objectAddress) {
-                                displayText = `${objectName}, ${objectAddress}`;
-                            } else if (objectName) {
-                                displayText = objectName;
-                            } else if (objectAddress) {
-                                displayText = objectAddress;
-                            } else {
-                                // Last resort fallback to coordinates
-                                displayText = `${coords[0].toFixed(
-                                    6
-                                )}, ${coords[1].toFixed(6)}`;
-                            }
-
-                            console.log('Setting input field to:', displayText);
-
-                            // Update the input field with our extracted text
-                            const addressInput = document.getElementById(
-                                'address-input'
-                            ) as HTMLInputElement;
-                            if (addressInput) {
-                                addressInput.value = displayText;
-                                // Trigger change event to update React state
-                                const event = new Event('input', {
-                                    bubbles: true,
-                                });
-                                addressInput.dispatchEvent(event);
-                                setSearchQuery(displayText);
-                            }
-
-                            // DO NOT stop propagation - let the default business card display
-                        } catch (error) {
-                            console.error(
-                                'Error handling object click:',
-                                error
-                            );
-                        }
-                    });
-
+                    // Replace all placemark-related code
+                    // Update setMapInstance but remove setPlacemarkInstance
                     setMapInstance(map);
-                    setPlacemarkInstance(placemark);
 
                     // Set user's location if available
                     if (navigator.geolocation) {
@@ -442,7 +267,6 @@ export default function AddressSelection() {
                                 position.coords.longitude,
                             ];
                             map.setCenter(userCoords);
-                            placemark.geometry.setCoordinates(userCoords);
 
                             // Geocode to get address - convert coordinates to string for the API
                             window.ymaps
@@ -621,11 +445,10 @@ export default function AddressSelection() {
             });
 
             // Update map and placemark if they exist
-            if (mapInstance && placemarkInstance && coordinates) {
+            if (mapInstance && coordinates) {
                 try {
                     console.log('Updating map with coordinates:', coordinates);
                     mapInstance.setCenter(coordinates, 16);
-                    placemarkInstance.geometry.setCoordinates(coordinates);
                 } catch (mapError) {
                     console.error('Error updating map:', mapError);
                 }
@@ -682,49 +505,8 @@ export default function AddressSelection() {
                     console.log('GeoJSON coordinates extracted:', coords);
 
                     // Update map and placemark if they exist
-                    if (mapInstance && placemarkInstance) {
+                    if (mapInstance && coords) {
                         mapInstance.setCenter(coords, 16);
-                        placemarkInstance.geometry.setCoordinates(coords);
-
-                        // Use reverse geocoding to get address from coordinates
-                        window.ymaps
-                            .geocode(`${coords[0]},${coords[1]}`)
-                            .then((res: any) => {
-                                const firstGeoObject = res.geoObjects.get(0);
-                                if (firstGeoObject) {
-                                    const address =
-                                        firstGeoObject.getAddressLine();
-                                    const locationName =
-                                        feature.properties.name || '';
-
-                                    // Format address with location name if available
-                                    const formattedAddress = locationName
-                                        ? `${address} (${locationName})`
-                                        : address;
-
-                                    console.log(
-                                        'Formatted address:',
-                                        formattedAddress
-                                    );
-
-                                    // Parse address components
-                                    const components = parseAddress(address);
-
-                                    // Update form data
-                                    setFormData({
-                                        ...formData,
-                                        ...components,
-                                        fullAddress: formattedAddress,
-                                        coordinates: {
-                                            lat: lat,
-                                            lng: lng,
-                                        },
-                                    });
-
-                                    // Update search query
-                                    setSearchQuery(formattedAddress);
-                                }
-                            });
                     }
                 }
             }
@@ -761,9 +543,7 @@ export default function AddressSelection() {
             return;
         }
 
-        if (placemarkInstance) {
-            const coordinates = placemarkInstance.geometry.getCoordinates();
-
+        if (visibleCoords) {
             const address: DeliveryAddress = {
                 street: formData.street || '',
                 houseNumber: formData.houseNumber || '',
@@ -775,8 +555,8 @@ export default function AddressSelection() {
                 zipCode: formData.zipCode || '',
                 fullAddress: formData.fullAddress || '',
                 coordinates: {
-                    lat: coordinates[0],
-                    lng: coordinates[1],
+                    lat: visibleCoords.lat,
+                    lng: visibleCoords.lng,
                 },
             };
 
@@ -831,10 +611,9 @@ export default function AddressSelection() {
 
             if (data.coordinates && data.address) {
                 // Update map if available
-                if (mapInstance && placemarkInstance) {
+                if (mapInstance && data.coordinates) {
                     const coords = [data.coordinates.lat, data.coordinates.lng];
                     mapInstance.setCenter(coords, 16);
-                    placemarkInstance.geometry.setCoordinates(coords);
                 }
 
                 // Parse address components
@@ -952,10 +731,9 @@ export default function AddressSelection() {
 
             if (data.coordinates && data.address) {
                 // Update map if available
-                if (mapInstance && placemarkInstance) {
+                if (mapInstance && data.coordinates) {
                     const coords = [data.coordinates.lat, data.coordinates.lng];
                     mapInstance.setCenter(coords, 16);
-                    placemarkInstance.geometry.setCoordinates(coords);
                 }
 
                 // Parse address components
@@ -1201,6 +979,7 @@ export default function AddressSelection() {
                                 >
                                     Copy
                                 </button>
+
                                 <button
                                     onClick={() => {
                                         // Get the coordinates string
@@ -1227,6 +1006,28 @@ export default function AddressSelection() {
                                 >
                                     Paste to Input
                                 </button>
+
+                                <button
+                                    onClick={() => {
+                                        // Log server response for these coordinates
+                                        logServerResponseByCoords(
+                                            visibleCoords.lat,
+                                            visibleCoords.lng
+                                        ).then((data) => {
+                                            alert(
+                                                `Server data logged to console for coordinates:\n${visibleCoords.lat.toFixed(
+                                                    6
+                                                )}, ${visibleCoords.lng.toFixed(
+                                                    6
+                                                )}`
+                                            );
+                                        });
+                                    }}
+                                    className='text-xs bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600'
+                                >
+                                    Log Server Data
+                                </button>
+
                                 <button
                                     onClick={() => {
                                         // Generate the API URL using our secure endpoint
