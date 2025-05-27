@@ -17,6 +17,18 @@ const nextConfig = {
         // This will expose process.env.GEOSUGGEST_KEY as process.env.NEXT_PUBLIC_GEOSUGGEST_KEY
         urlImports: [],
     },
+    // Add images configuration to allow images from unsplash.com
+    images: {
+        domains: ['images.unsplash.com'],
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'images.unsplash.com',
+                port: '',
+                pathname: '/**',
+            },
+        ],
+    },
 };
 
 // Add this to make GEOSUGGEST_KEY available as NEXT_PUBLIC_GEOSUGGEST_KEY

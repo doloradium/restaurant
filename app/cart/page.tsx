@@ -50,8 +50,10 @@ const CartPage = () => {
                                     <Image
                                         src={item.image}
                                         alt={item.name}
-                                        fill
-                                        className='rounded-lg object-cover'
+                                        width={96}
+                                        height={96}
+                                        className='rounded-lg object-cover w-full h-full'
+                                        style={{ objectFit: 'cover' }}
                                     />
                                 ) : (
                                     <div className='w-full h-full bg-gray-200 rounded-lg flex items-center justify-center'>

@@ -32,21 +32,19 @@ export const setAuthCookies = (
     refreshToken: string
 ) => {
     console.log('Setting auth cookies');
-    // Set access token cookie (1 hour)
     response.cookies.set('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60, // 1 hour
+        maxAge: 60 * 60,
         path: '/',
     });
 
-    // Set refresh token cookie (7 days)
     response.cookies.set('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
+        maxAge: 7 * 24 * 60 * 60,
         path: '/',
     });
 

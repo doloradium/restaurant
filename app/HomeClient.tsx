@@ -20,7 +20,7 @@ export default function HomeClient({
                 <div className='absolute inset-0 z-0'>
                     <div className='relative h-full w-full'>
                         <div className='absolute inset-0 bg-black/50 z-10'></div>
-                        <div className="h-full w-full bg-[url('/images/hero-bg.jpg')] bg-cover bg-center"></div>
+                        <div className='h-full w-full hero-bg'></div>
                     </div>
                 </div>
                 <div className='container mx-auto px-4 relative z-20'>
@@ -110,7 +110,7 @@ export default function HomeClient({
                                 name={product.name}
                                 description={product.description || ''}
                                 price={product.price || 0}
-                                image={product.image}
+                                images={product.images}
                                 categoryId={product.categoryId}
                                 categoryName={product.category?.name}
                             />

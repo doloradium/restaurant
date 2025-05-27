@@ -66,7 +66,10 @@ export default function MenuItemClient({
             description: item.description,
             price: item.price,
             quantity: quantity,
-            image: item.image,
+            image:
+                item.images && item.images.length > 0
+                    ? item.images[0].imageUrl
+                    : undefined,
             categoryId: item.categoryId || item.category?.id,
         });
     };
@@ -80,7 +83,6 @@ export default function MenuItemClient({
 
     return (
         <div className='bg-white'>
-            {/* Breadcrumb Navigation */}
             <div className='bg-gray-100 py-3'>
                 <div className='container mx-auto px-4'>
                     <div className='flex items-center text-sm text-gray-600'>
@@ -109,7 +111,6 @@ export default function MenuItemClient({
                 </div>
             </div>
 
-            {/* Product Detail */}
             <div className='container mx-auto px-4 py-8'>
                 <button
                     onClick={() => router.back()}
@@ -119,59 +120,75 @@ export default function MenuItemClient({
                 </button>
 
                 <div className='grid grid-cols-1 lg:grid-cols-2 gap-12'>
-                    {/* Product Images */}
                     <div>
-                        <div className='mb-4 aspect-square bg-gray-100 rounded-lg overflow-hidden relative'>
-                            <img
-                                src={item.image}
-                                alt={item.name}
-                                className='w-full h-full object-cover'
-                            />
-
-                            {/* Favorite Button */}
-                            <button
-                                onClick={toggleFavorite}
-                                className='absolute top-4 right-4 h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center text-gray-600 hover:text-red-600 transition duration-200'
-                            >
-                                {isFavorite ? (
-                                    <FaHeart className='text-red-600' />
+                        <div>
+                            <div className='mb-4 aspect-square bg-gray-100 rounded-lg overflow-hidden relative'>
+                                {item.images && item.images.length > 0 ? (
+                                    <img
+                                        src={
+                                            item.images[activeImageIndex]
+                                                ?.imageUrl ||
+                                            item.images[0].imageUrl
+                                        }
+                                        alt={item.name}
+                                        className='w-full h-full object-cover'
+                                    />
                                 ) : (
-                                    <FaRegHeart />
+                                    <div className='w-full h-full bg-gray-200 flex items-center justify-center'>
+                                        <span className='text-gray-500'>
+                                            No image available
+                                        </span>
+                                    </div>
                                 )}
-                            </button>
-                        </div>
 
-                        {/* Thumbnail Images */}
-                        {item.images && item.images.length > 0 && (
-                            <div className='grid grid-cols-4 gap-4'>
-                                {item.images.map(
-                                    (image: string, index: number) => (
-                                        <div
-                                            key={index}
-                                            className={`aspect-square rounded-md cursor-pointer overflow-hidden relative ${
-                                                activeImageIndex === index
-                                                    ? 'ring-2 ring-red-600'
-                                                    : 'opacity-70'
-                                            }`}
-                                            onClick={() =>
-                                                setActiveImageIndex(index)
-                                            }
-                                        >
-                                            <img
-                                                src={image}
-                                                alt={`${item.name} - Image ${
-                                                    index + 1
-                                                }`}
-                                                className='w-full h-full object-cover'
-                                            />
-                                        </div>
-                                    )
-                                )}
+                                <button
+                                    onClick={toggleFavorite}
+                                    className='absolute top-4 right-4 h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center text-gray-600 hover:text-red-600 transition duration-200'
+                                >
+                                    {isFavorite ? (
+                                        <FaHeart className='text-red-600' />
+                                    ) : (
+                                        <FaRegHeart />
+                                    )}
+                                </button>
                             </div>
-                        )}
+
+                            {item.images && item.images.length > 0 && (
+                                <div className='grid grid-cols-4 gap-4'>
+                                    {item.images.map(
+                                        (
+                                            image: {
+                                                id: number;
+                                                imageUrl: string;
+                                            },
+                                            index: number
+                                        ) => (
+                                            <div
+                                                key={index}
+                                                className={`aspect-square rounded-md cursor-pointer overflow-hidden relative ${
+                                                    activeImageIndex === index
+                                                        ? 'ring-2 ring-red-600'
+                                                        : 'opacity-70'
+                                                }`}
+                                                onClick={() =>
+                                                    setActiveImageIndex(index)
+                                                }
+                                            >
+                                                <img
+                                                    src={image.imageUrl}
+                                                    alt={`${
+                                                        item.name
+                                                    } - Image ${index + 1}`}
+                                                    className='w-full h-full object-cover'
+                                                />
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Product Info */}
                     <div>
                         <h1 className='text-3xl font-bold text-gray-900 mb-2'>
                             {item.name}
@@ -211,7 +228,6 @@ export default function MenuItemClient({
 
                         <p className='text-gray-600 mb-6'>{item.description}</p>
 
-                        {/* Dietary Info */}
                         <div className='mb-6 flex flex-wrap gap-3'>
                             {item.isVegetarian && (
                                 <span className='bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full'>
@@ -230,7 +246,6 @@ export default function MenuItemClient({
                             )}
                         </div>
 
-                        {/* Quantity Selector */}
                         <div className='mb-6'>
                             <label className='block text-sm font-medium text-gray-700 mb-2'>
                                 Quantity
@@ -265,7 +280,6 @@ export default function MenuItemClient({
                             </div>
                         </div>
 
-                        {/* Add to Cart Button */}
                         <div className='mb-8'>
                             <button
                                 onClick={handleAddToCart}
@@ -277,7 +291,6 @@ export default function MenuItemClient({
                             </button>
                         </div>
 
-                        {/* Tabs */}
                         <div className='border-t border-gray-200 pt-6'>
                             <div className='flex border-b border-gray-200'>
                                 <button
@@ -505,7 +518,6 @@ export default function MenuItemClient({
                 </div>
             </div>
 
-            {/* Related Products */}
             {relatedItems.length > 0 && (
                 <div className='bg-gray-50 py-12'>
                     <div className='container mx-auto px-4'>
@@ -523,11 +535,23 @@ export default function MenuItemClient({
                                         >
                                             <Link href={`/menu/${item.id}`}>
                                                 <div className='h-48 bg-gray-200 relative'>
-                                                    <img
-                                                        src={item.image}
-                                                        alt={item.name}
-                                                        className='w-full h-full object-cover'
-                                                    />
+                                                    {item.images &&
+                                                    item.images.length > 0 ? (
+                                                        <img
+                                                            src={
+                                                                item.images[0]
+                                                                    .imageUrl
+                                                            }
+                                                            alt={item.name}
+                                                            className='w-full h-full object-cover'
+                                                        />
+                                                    ) : (
+                                                        <div className='h-full w-full bg-gray-200 flex items-center justify-center'>
+                                                            <span className='text-sm text-gray-500'>
+                                                                Нет изображения
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </Link>
                                             <div className='p-4'>

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
     try {
+        console.log('Fetching all categories');
+
         const categories = await prisma.category.findMany({
             select: {
                 id: true,
@@ -10,6 +12,7 @@ export async function GET() {
             },
         });
 
+        console.log('Categories fetched successfully:', categories);
         return NextResponse.json(categories);
     } catch (error) {
         console.error('Error fetching categories:', error);

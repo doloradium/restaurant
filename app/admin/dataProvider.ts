@@ -5,17 +5,39 @@ const apiUrl = '/api/admin';
 export const dataProvider: DataProvider = {
     getList: async (resource) => {
         try {
+            console.log(`Fetching list of ${resource}`);
+
             const response = await fetch(`${apiUrl}/${resource}`);
+
             if (!response.ok) {
+                console.error(
+                    `Error fetching ${resource} list:`,
+                    response.status,
+                    response.statusText
+                );
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
             const data = await response.json();
+            console.log(`${resource} list data:`, data);
+
+            // Special handling for categories if needed
+            if (resource === 'categories' && (!data || !Array.isArray(data))) {
+                console.warn(
+                    'Categories data is not an array, returning empty array'
+                );
+                return {
+                    data: [],
+                    total: 0,
+                };
+            }
+
             return {
                 data: Array.isArray(data) ? data : [],
                 total: Array.isArray(data) ? data.length : 0,
             };
         } catch (error) {
-            console.error('Error fetching list:', error);
+            console.error(`Error fetching ${resource} list:`, error);
             return {
                 data: [],
                 total: 0,
@@ -25,14 +47,16 @@ export const dataProvider: DataProvider = {
 
     getOne: async (resource, params) => {
         try {
+            console.log(`Fetching single ${resource} with ID:`, params.id);
             const response = await fetch(`${apiUrl}/${resource}/${params.id}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
+            console.log(`${resource} data:`, data);
             return { data };
         } catch (error) {
-            console.error('Error fetching one:', error);
+            console.error(`Error fetching ${resource}:`, error);
             throw error;
         }
     },
@@ -97,6 +121,8 @@ export const dataProvider: DataProvider = {
 
     update: async (resource, params) => {
         try {
+            console.log('Updating resource:', resource, 'with params:', params);
+
             const response = await fetch(`${apiUrl}/${resource}/${params.id}`, {
                 method: 'PUT',
                 headers: {
@@ -104,13 +130,22 @@ export const dataProvider: DataProvider = {
                 },
                 body: JSON.stringify(params.data),
             });
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response
+                    .json()
+                    .catch(() => ({ error: 'Unknown error' }));
+                console.error('Update error response:', errorData);
+                throw new Error(
+                    errorData.error || `HTTP error! status: ${response.status}`
+                );
             }
+
             const data = await response.json();
+            console.log('Update success response:', data);
             return { data };
         } catch (error) {
-            console.error('Error updating:', error);
+            console.error('Error updating resource:', error);
             throw error;
         }
     },

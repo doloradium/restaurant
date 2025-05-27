@@ -38,6 +38,14 @@ model Item {
   category    Category  @relation(fields: [categoryId], references: [id])
   orderItems  OrderItem[]
   reviews     Review[]
+  images      Image[]
+}
+
+model Image {
+  id       Int    @id @default(autoincrement())
+  itemId   Int
+  imageUrl String
+  item     Item   @relation(fields: [itemId], references: [id])
 }
 
 model Order {

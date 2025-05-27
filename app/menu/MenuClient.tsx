@@ -16,7 +16,7 @@ interface MenuItemType {
     name: string;
     description: string;
     price: number;
-    image?: string;
+    images?: Array<{ id: number; imageUrl: string }>;
     categoryId?: string;
     category?: Category;
     isVegetarian?: boolean;
@@ -439,7 +439,7 @@ export default function MenuClient({
                                         name={item.name}
                                         description={item.description}
                                         price={item.price}
-                                        image={item.image}
+                                        images={item.images}
                                         categoryId={
                                             item.categoryId || item.category?.id
                                         }

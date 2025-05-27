@@ -74,14 +74,20 @@ export default function CartProvider({
                           }
                         : cartItem
                 );
-                toast.success('Количество обновлено');
                 return updatedCart;
             } else {
                 // Add new item to cart
-                toast.success('Добавлено в корзину');
                 return [...prevCart, item];
             }
         });
+
+        // Show toast notification outside of setState
+        const isExisting = cart.some((cartItem) => cartItem.id === item.id);
+        if (isExisting) {
+            toast.success('Количество обновлено');
+        } else {
+            toast.success('Добавлено в корзину');
+        }
     };
 
     const removeFromCart = (itemId: string) => {

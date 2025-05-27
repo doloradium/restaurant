@@ -11,7 +11,7 @@ interface MenuItemProps {
     name: string;
     description: string;
     price: number;
-    image?: string;
+    images?: Array<{ id: number; imageUrl: string }>;
     categoryId?: string;
     categoryName?: string;
 }
@@ -21,12 +21,16 @@ export default function MenuItem({
     name,
     description,
     price,
-    image,
+    images,
     categoryId,
     categoryName,
 }: MenuItemProps) {
     const [quantity, setQuantity] = useState(1);
     const { addToCart } = useCart();
+
+    // Get the first image URL if available
+    const imageUrl =
+        images && images.length > 0 ? images[0].imageUrl : undefined;
 
     const handleAddToCart = () => {
         addToCart({
@@ -35,7 +39,7 @@ export default function MenuItem({
             description,
             price,
             quantity,
-            image,
+            image: imageUrl,
             categoryId,
         });
     };
@@ -43,11 +47,12 @@ export default function MenuItem({
     return (
         <div className='bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300'>
             <div className='h-48 relative'>
-                {image ? (
+                {imageUrl ? (
                     <Image
-                        src={image}
+                        src={imageUrl}
                         alt={name}
                         fill
+                        sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw'
                         className='object-cover'
                     />
                 ) : (

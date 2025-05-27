@@ -3,7 +3,7 @@ import MenuItemClient from './MenuItemClient';
 async function getItem(id: string) {
     const res = await fetch(
         `${
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002'
         }/api/items/${id}`,
         { cache: 'no-store' }
     );
@@ -14,7 +14,7 @@ async function getItem(id: string) {
 async function getReviews(id: string) {
     const res = await fetch(
         `${
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002'
         }/api/reviews?id=${id}`,
         { cache: 'no-store' }
     );
@@ -41,7 +41,7 @@ export default async function MenuItemPage({
                 const res = await fetch(
                     `${
                         process.env.NEXT_PUBLIC_BASE_URL ||
-                        'http://localhost:3000'
+                        'http://localhost:3002'
                     }/api/items/${relatedId}`,
                     { cache: 'no-store' }
                 );

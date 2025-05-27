@@ -3,7 +3,7 @@ import MenuClient from './MenuClient';
 async function getCategories() {
     try {
         const baseUrl =
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002';
         const res = await fetch(`${baseUrl}/api/categories`, {
             cache: 'no-store',
         });
@@ -22,7 +22,7 @@ async function getCategories() {
 async function getItems() {
     try {
         const baseUrl =
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002';
         const res = await fetch(`${baseUrl}/api/items`, {
             cache: 'no-store',
         });

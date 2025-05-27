@@ -46,7 +46,6 @@ export default function AuthProvider({
                 } else if (
                     !publicPaths.some((path) => pathname.startsWith(path))
                 ) {
-                    // Only redirect if we're not on a public path
                     router.push('/login');
                 }
             } catch (error) {
