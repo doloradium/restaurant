@@ -71,73 +71,154 @@ export async function PUT(
         }
 
         const data = await request.json();
+        console.log('Update order data received:', data);
 
-        // Extract orderItems from data if present
+        // Check if order exists before trying to update
+        const existingOrder = await prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!existingOrder) {
+            return NextResponse.json(
+                { error: `Order with ID ${orderId} not found` },
+                { status: 404 }
+            );
+        }
+
+        // Extract orderItems from data if present and ensure it's kept separately
         const { orderItems, ...orderData } = data;
 
-        // Start a transaction
-        const updatedOrder = await prisma.$transaction(async (prisma) => {
-            // Update order data
-            const order = await prisma.order.update({
-                where: {
-                    id: orderId,
-                },
-                data: orderData,
-                include: {
-                    orderItems: true,
-                },
-            });
+        // Additional validation and cleaning
+        // Remove any keys with undefined values to avoid Prisma validation errors
+        Object.keys(orderData).forEach((key) => {
+            if (orderData[key] === undefined) {
+                delete orderData[key];
+            }
+        });
 
-            // If orderItems is provided, update them
-            if (orderItems && Array.isArray(orderItems)) {
-                // First remove all existing order items
-                await prisma.orderItem.deleteMany({
+        // Remove any fields that shouldn't be updated directly
+        delete orderData.user;
+        delete orderData.id;
+
+        console.log('Cleaned order data for update:', orderData);
+
+        try {
+            // Start a transaction
+            const updatedOrder = await prisma.$transaction(async (tx) => {
+                console.log('Updating order with data:', orderData);
+
+                // Update order data
+                const order = await tx.order.update({
                     where: {
-                        orderId: orderId,
+                        id: orderId,
                     },
+                    data: orderData,
                 });
 
-                // Then create the new ones
-                for (const item of orderItems) {
-                    await prisma.orderItem.create({
-                        data: {
+                console.log('Order updated successfully:', order);
+
+                // If orderItems is provided, update them
+                if (orderItems && Array.isArray(orderItems)) {
+                    console.log('Updating order items:', orderItems);
+
+                    // First remove all existing order items
+                    await tx.orderItem.deleteMany({
+                        where: {
                             orderId: orderId,
-                            itemId: item.itemId,
-                            quantity: item.quantity,
                         },
                     });
+
+                    // Then create the new ones
+                    for (const item of orderItems) {
+                        // Ensure itemId is a number
+                        const itemId =
+                            typeof item.itemId === 'string'
+                                ? parseInt(item.itemId)
+                                : item.itemId;
+
+                        // Ensure quantity is a number
+                        const quantity =
+                            typeof item.quantity === 'string'
+                                ? parseInt(item.quantity)
+                                : item.quantity;
+
+                        await tx.orderItem.create({
+                            data: {
+                                orderId: orderId,
+                                itemId: itemId,
+                                quantity: quantity,
+                            },
+                        });
+                    }
+                }
+
+                // Return the updated order with fresh orderItems
+                return tx.order.findUnique({
+                    where: {
+                        id: orderId,
+                    },
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                surname: true,
+                                email: true,
+                                phoneNumber: true,
+                            },
+                        },
+                        orderItems: {
+                            include: {
+                                item: true,
+                            },
+                        },
+                    },
+                });
+            });
+
+            console.log('Transaction completed successfully');
+            return NextResponse.json(updatedOrder);
+        } catch (transactionError: any) {
+            console.error('Transaction error details:', transactionError);
+
+            // Extract useful information from Prisma errors
+            let errorMessage = 'Transaction failed';
+            let errorDetails =
+                transactionError.message || String(transactionError);
+
+            // Check if it's a Prisma-specific error
+            if (transactionError.code) {
+                switch (transactionError.code) {
+                    case 'P2025':
+                        errorMessage = 'Record not found';
+                        break;
+                    case 'P2002':
+                        errorMessage = 'Unique constraint violation';
+                        break;
+                    case 'P2003':
+                        errorMessage = 'Foreign key constraint violation';
+                        break;
+                    default:
+                        errorMessage = `Prisma error: ${transactionError.code}`;
                 }
             }
 
-            // Return the updated order with fresh orderItems
-            return prisma.order.findUnique({
-                where: {
-                    id: orderId,
+            return NextResponse.json(
+                {
+                    error: errorMessage,
+                    details: errorDetails,
+                    code: transactionError.code || 'UNKNOWN',
                 },
-                include: {
-                    user: {
-                        select: {
-                            id: true,
-                            name: true,
-                            surname: true,
-                            email: true,
-                            phoneNumber: true,
-                        },
-                    },
-                    orderItems: {
-                        include: {
-                            item: true,
-                        },
-                    },
-                },
-            });
-        });
-
-        return NextResponse.json(updatedOrder);
-    } catch (error) {
+                { status: 500 }
+            );
+        }
+    } catch (error: any) {
         console.error('Error updating order:', error);
         return NextResponse.json(
-            { error: 'Failed to update order' },
+            {
+                error: 'Failed to update order',
+                message: error.message || String(error),
+            },
             { status: 500 }
         );
     }

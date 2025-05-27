@@ -5,6 +5,8 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ClientLayout from './ClientLayout';
 import AuthProvider from './AuthProvider';
+import { CookAuthProvider } from './CookAuthProvider';
+import { CourierAuthProvider } from './CourierAuthProvider';
 import CartProvider from './CartProvider';
 import DeliveryProvider from './DeliveryProvider';
 import { Toaster } from 'react-hot-toast';
@@ -25,12 +27,16 @@ export default function RootLayout({
         <html lang='en'>
             <body className={inter.className}>
                 <AuthProvider>
-                    <CartProvider>
-                        <DeliveryProvider>
-                            <Toaster position='top-right' />
-                            <ClientLayout>{children}</ClientLayout>
-                        </DeliveryProvider>
-                    </CartProvider>
+                    <CookAuthProvider>
+                        <CourierAuthProvider>
+                            <CartProvider>
+                                <DeliveryProvider>
+                                    <Toaster position='top-right' />
+                                    <ClientLayout>{children}</ClientLayout>
+                                </DeliveryProvider>
+                            </CartProvider>
+                        </CourierAuthProvider>
+                    </CookAuthProvider>
                 </AuthProvider>
             </body>
         </html>

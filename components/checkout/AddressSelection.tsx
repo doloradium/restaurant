@@ -78,9 +78,23 @@ export default function AddressSelection() {
         floor: deliveryAddress?.floor || '',
         intercom: deliveryAddress?.intercom || '',
         city: deliveryAddress?.city || '',
-        zipCode: deliveryAddress?.zipCode || '',
         fullAddress: deliveryAddress?.fullAddress || '',
     });
+
+    // Add state variables for field-specific suggestions and loading states
+    const [citySuggestions, setCitySuggestions] = useState<any[]>([]);
+    const [streetSuggestions, setStreetSuggestions] = useState<any[]>([]);
+    const [houseNumberSuggestions, setHouseNumberSuggestions] = useState<any[]>(
+        []
+    );
+    const [isLoadingCity, setIsLoadingCity] = useState(false);
+    const [isLoadingStreet, setIsLoadingStreet] = useState(false);
+    const [isLoadingHouseNumber, setIsLoadingHouseNumber] = useState(false);
+
+    // Add debounce refs for each field
+    const debounceCityRef = useRef<NodeJS.Timeout | null>(null);
+    const debounceStreetRef = useRef<NodeJS.Timeout | null>(null);
+    const debounceHouseRef = useRef<NodeJS.Timeout | null>(null);
 
     // Get script URL from server
     useEffect(() => {
@@ -194,17 +208,14 @@ export default function AddressSelection() {
                             .then((data) => {
                                 console.log('Geocoded result:', data);
 
-                                if (data && data.address) {
-                                    // Parse address into components
-                                    const components = parseAddress(
-                                        data.address
-                                    );
+                                if (data) {
+                                    // Use the new parseYandexAddress function instead of parseAddress
+                                    const components = parseYandexAddress(data);
 
                                     // Update form and search query with new address
                                     setFormData({
                                         ...formData,
                                         ...components,
-                                        fullAddress: data.address,
                                         coordinates: {
                                             lat: coords[0],
                                             lng: coords[1],
@@ -212,7 +223,7 @@ export default function AddressSelection() {
                                     });
 
                                     // Update the search input field with the new address
-                                    setSearchQuery(data.address);
+                                    setSearchQuery(data.address || '');
 
                                     // Update the input field directly to ensure it's visible
                                     const addressInput =
@@ -220,7 +231,7 @@ export default function AddressSelection() {
                                             'address-input'
                                         ) as HTMLInputElement;
                                     if (addressInput) {
-                                        addressInput.value = data.address;
+                                        addressInput.value = data.address || '';
                                         // Trigger a change event to ensure React state updates
                                         const event = new Event('input', {
                                             bubbles: true,
@@ -366,6 +377,7 @@ export default function AddressSelection() {
 
             let coordinates;
             let formattedAddress = displayAddress;
+            let addressData;
 
             // First attempt: Use our server-side geocoding API
             try {
@@ -379,6 +391,7 @@ export default function AddressSelection() {
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Server geocoding response:', data);
+                    addressData = data;
 
                     if (data.coordinates) {
                         // Use type assertion to ensure TypeScript knows this is a valid coordinate pair
@@ -428,14 +441,18 @@ export default function AddressSelection() {
                 }
             }
 
-            // Create components from the address
-            const components = parseAddress(formattedAddress);
+            // Use the parseYandexAddress function to get components for the form
+            let components;
+            if (addressData) {
+                components = parseYandexAddress(addressData);
+            } else {
+                components = parseAddress(formattedAddress);
+            }
 
             // Update form data
             setFormData({
                 ...formData,
                 ...components,
-                fullAddress: formattedAddress,
                 coordinates: coordinates
                     ? {
                           lat: coordinates[0],
@@ -517,23 +534,112 @@ export default function AddressSelection() {
 
     // Parse address into components
     const parseAddress = (address: string): Partial<DeliveryAddress> => {
-        // Simple parsing logic - in a real app you'd use Yandex's structured address components
+        // Split by commas and remove whitespace
         const parts = address.split(',').map((part) => part.trim());
+
+        // Now let's extract components more intelligently
+        let city = '';
+        let street = '';
+        let houseNumber = '';
+
+        // If we have at least 3 parts, we'll use them for city, street, house number
+        if (parts.length >= 3) {
+            // Typical format: Country, City, Street, House Number, etc.
+            // We'll skip the country (first element) and use appropriate positions
+            city = parts[1] || ''; // City is usually the second component
+            street = parts[2] || ''; // Street is usually the third component
+
+            // House number could be the fourth component or part of the third
+            if (parts.length >= 4) {
+                houseNumber = parts[3];
+            } else {
+                // Try to extract house number from street if it contains numbers
+                const match = street.match(/(\d+[\w\/\-]*\s*$)/); // Match numbers at end of string
+                if (match) {
+                    houseNumber = match[1].trim();
+                    street = street.replace(match[1], '').trim();
+                }
+            }
+        } else if (parts.length === 2) {
+            // If only 2 parts, assume city and street
+            city = parts[0] || '';
+            street = parts[1] || '';
+        } else if (parts.length === 1) {
+            // If only 1 part, use it as street
+            street = parts[0] || '';
+        }
+
+        // Clean up any remaining issues
+        if (!city && parts.length > 0) {
+            city = parts[0]; // Use first segment as city if nothing else worked
+        }
+
+        console.log('Parsed address components:', {
+            original: address,
+            city,
+            street,
+            houseNumber,
+        });
+
         return {
-            city: parts.length > 0 ? parts[0] : '',
-            street: parts.length > 1 ? parts[1] : '',
-            houseNumber: parts.length > 2 ? parts[2] : '',
+            city,
+            street,
+            houseNumber,
             fullAddress: address,
         };
     };
 
-    // Handle form input changes
+    // Enhance the handleInputChange function to update the geosuggest input as well
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
+
+        // Update the specific form field
         setFormData({
             ...formData,
             [name]: value,
         });
+
+        // Now update the search query / main geosuggest input to reflect all fields
+        // We'll use setTimeout to ensure this happens after the form state updates
+        setTimeout(() => {
+            // Get the updated form data
+            const updatedFormData = {
+                ...formData,
+                [name]: value,
+            };
+
+            // Create the full address string based on city, street and house number
+            // Only include fields that have values
+            const parts = [];
+            if (updatedFormData.city) parts.push(updatedFormData.city);
+            if (updatedFormData.street) parts.push(updatedFormData.street);
+            if (updatedFormData.houseNumber)
+                parts.push(updatedFormData.houseNumber);
+
+            // Create combined address string
+            const fullAddress = parts.join(', ');
+
+            // Update the search query
+            setSearchQuery(fullAddress);
+
+            // Also update the input field directly
+            const addressInput = document.getElementById(
+                'address-input'
+            ) as HTMLInputElement;
+            if (addressInput) {
+                addressInput.value = fullAddress;
+            }
+
+            // Also update the fullAddress property in formData
+            setFormData((prev) => ({
+                ...prev,
+                fullAddress,
+            }));
+
+            console.log(
+                `Address field "${name}" updated to "${value}", full address: "${fullAddress}"`
+            );
+        }, 0);
     };
 
     // Save delivery address
@@ -552,7 +658,6 @@ export default function AddressSelection() {
                 floor: formData.floor || '',
                 intercom: formData.intercom || '',
                 city: formData.city || '',
-                zipCode: formData.zipCode || '',
                 fullAddress: formData.fullAddress || '',
                 coordinates: {
                     lat: visibleCoords.lat,
@@ -609,21 +714,20 @@ export default function AddressSelection() {
             const data = await response.json();
             console.log('Organization details:', data);
 
-            if (data.coordinates && data.address) {
+            if (data) {
                 // Update map if available
                 if (mapInstance && data.coordinates) {
                     const coords = [data.coordinates.lat, data.coordinates.lng];
                     mapInstance.setCenter(coords, 16);
                 }
 
-                // Parse address components
-                const components = parseAddress(data.address);
+                // Parse address components using structured data
+                const components = parseYandexAddress(data);
 
                 // Update form data
                 setFormData({
                     ...formData,
                     ...components,
-                    fullAddress: data.address,
                     coordinates: data.coordinates,
                 });
 
@@ -729,21 +833,20 @@ export default function AddressSelection() {
             const data = await response.json();
             console.log('Location details:', data);
 
-            if (data.coordinates && data.address) {
+            if (data) {
                 // Update map if available
                 if (mapInstance && data.coordinates) {
                     const coords = [data.coordinates.lat, data.coordinates.lng];
                     mapInstance.setCenter(coords, 16);
                 }
 
-                // Parse address components
-                const components = parseAddress(data.address);
+                // Parse address components using the new structured data parser
+                const components = parseYandexAddress(data);
 
                 // Update form data
                 setFormData({
                     ...formData,
                     ...components,
-                    fullAddress: data.address,
                     coordinates: data.coordinates,
                 });
 
@@ -864,6 +967,603 @@ export default function AddressSelection() {
         // Instead of hardcoding the key, use our secure server endpoint that has access to env vars
         // Format: geocode=longitude,latitude (Yandex expects longitude first)
         return `/api/yandex/generate-geocode-url?lat=${lat}&lng=${lng}`;
+    };
+
+    // Add this function to handle the structured Yandex response object
+    const parseYandexAddress = (data: any): Partial<DeliveryAddress> => {
+        console.log('Parsing Yandex address data:', data);
+
+        let city = '';
+        let street = '';
+        let houseNumber = '';
+
+        try {
+            // Try to extract data from the structured components if available
+            if (
+                data.raw?.metaDataProperty?.GeocoderMetaData?.Address
+                    ?.Components
+            ) {
+                const components =
+                    data.raw.metaDataProperty.GeocoderMetaData.Address
+                        .Components;
+
+                // Find components by kind
+                for (const component of components) {
+                    if (component.kind === 'locality') {
+                        city = component.name;
+                    }
+                    if (component.kind === 'street') {
+                        street = component.name;
+                    }
+                    if (component.kind === 'house') {
+                        houseNumber = component.name;
+                    }
+                }
+            }
+
+            // If structured data wasn't available, try the AddressDetails
+            if (
+                !city &&
+                data.raw?.metaDataProperty?.GeocoderMetaData?.AddressDetails
+                    ?.Country?.AdministrativeArea
+            ) {
+                const adminArea =
+                    data.raw.metaDataProperty.GeocoderMetaData.AddressDetails
+                        .Country.AdministrativeArea;
+
+                // Try to get city (locality)
+                if (adminArea.SubAdministrativeArea?.Locality?.LocalityName) {
+                    city =
+                        adminArea.SubAdministrativeArea.Locality.LocalityName;
+                } else if (adminArea.Locality?.LocalityName) {
+                    city = adminArea.Locality.LocalityName;
+                }
+
+                // Try to get street
+                if (
+                    adminArea.SubAdministrativeArea?.Locality?.Thoroughfare
+                        ?.ThoroughfareName
+                ) {
+                    street =
+                        adminArea.SubAdministrativeArea.Locality.Thoroughfare
+                            .ThoroughfareName;
+                } else if (adminArea.Locality?.Thoroughfare?.ThoroughfareName) {
+                    street = adminArea.Locality.Thoroughfare.ThoroughfareName;
+                }
+
+                // Try to get house number
+                if (
+                    adminArea.SubAdministrativeArea?.Locality?.Thoroughfare
+                        ?.Premise?.PremiseNumber
+                ) {
+                    houseNumber =
+                        adminArea.SubAdministrativeArea.Locality.Thoroughfare
+                            .Premise.PremiseNumber;
+                } else if (
+                    adminArea.Locality?.Thoroughfare?.Premise?.PremiseNumber
+                ) {
+                    houseNumber =
+                        adminArea.Locality.Thoroughfare.Premise.PremiseNumber;
+                }
+            }
+
+            // If we still don't have data, try the name and description fields
+            if (!street && data.name) {
+                // The name field often contains the street and house number
+                const nameParts = data.name.split(',');
+                if (nameParts.length > 0) {
+                    // Try to extract house number if there's a space followed by numbers
+                    const match = data.name.match(/(.*?)\s+(\d+[\w\/\-]*)$/);
+                    if (match) {
+                        street = match[1].trim();
+                        if (!houseNumber) houseNumber = match[2].trim();
+                    } else {
+                        street = data.name;
+                    }
+                }
+            }
+
+            // For city, try from description if not found
+            if (!city && data.description) {
+                const descParts = data.description.split(',');
+                if (descParts.length > 0) {
+                    city = descParts[0].trim(); // First part of description is usually city
+                }
+            }
+        } catch (error) {
+            console.error('Error parsing Yandex address data:', error);
+        }
+
+        // If we still don't have the data, fall back to basic parsing
+        if (!city || !street) {
+            const basicParsed = parseAddress(data.address || '');
+            if (!city) city = basicParsed.city || '';
+            if (!street) street = basicParsed.street || '';
+            if (!houseNumber) houseNumber = basicParsed.houseNumber || '';
+        }
+
+        // Log the extracted components
+        console.log('Extracted address components:', {
+            city,
+            street,
+            houseNumber,
+            fullAddress: data.address || '',
+        });
+
+        return {
+            city,
+            street,
+            houseNumber,
+            fullAddress: data.address || '',
+        };
+    };
+
+    // Search for cities
+    const searchCity = useCallback((query: string) => {
+        if (debounceCityRef.current) {
+            clearTimeout(debounceCityRef.current);
+        }
+
+        debounceCityRef.current = setTimeout(async () => {
+            if (!query) {
+                setCitySuggestions([]);
+                return;
+            }
+
+            setIsLoadingCity(true);
+            try {
+                // Explicitly set type=locality to only get cities, towns, etc.
+                const response = await fetch(
+                    `/api/yandex/suggest?query=${encodeURIComponent(
+                        query
+                    )}&type=locality`
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch city suggestions');
+                }
+
+                const data = await response.json();
+                console.log('City suggestions:', data);
+
+                if (data && data.results) {
+                    // Still apply filtering to ensure we only get localities
+                    const cities = data.results.filter((result: any) => {
+                        // Make sure it's a locality - either directly by API response type
+                        // or by checking common keywords in Russian
+                        return result.title.text && !result.subtitle;
+                        // (result.subtitle.text.includes('город') ||
+                        //     result.subtitle.text.includes('поселок') ||
+                        //     result.subtitle.text.includes('село') ||
+                        //     result.subtitle.text.includes('деревня') ||
+                        //     result.subtitle.text.includes(
+                        //         'населенный пункт'
+                        //     ) ||
+                        //     !result.subtitle.text.includes('улица')) // Not a street
+                    });
+
+                    setCitySuggestions(cities.slice(0, 5));
+                }
+            } catch (error) {
+                console.error('Error searching cities:', error);
+            } finally {
+                setIsLoadingCity(false);
+            }
+        }, 500);
+    }, []);
+
+    // Search for streets within a city
+    const searchStreet = useCallback(
+        (query: string) => {
+            if (debounceStreetRef.current) {
+                clearTimeout(debounceStreetRef.current);
+            }
+
+            debounceStreetRef.current = setTimeout(async () => {
+                if (!query || !formData.city) {
+                    setStreetSuggestions([]);
+                    return;
+                }
+
+                setIsLoadingStreet(true);
+                try {
+                    // First get coordinates for the city to use as search bias
+                    let cityCoordinates = null;
+                    try {
+                        const geocodeResponse = await fetch(
+                            `/api/yandex/server-geocode?address=${encodeURIComponent(
+                                formData.city || ''
+                            )}`
+                        );
+                        if (geocodeResponse.ok) {
+                            const geocodeData = await geocodeResponse.json();
+                            if (geocodeData.coordinates) {
+                                cityCoordinates = geocodeData.coordinates;
+                            }
+                        }
+                    } catch (geocodeError) {
+                        console.error(
+                            'Error getting city coordinates:',
+                            geocodeError
+                        );
+                    }
+
+                    // Build additional parameters for geographic constraints
+                    let additionalParams = '';
+                    if (cityCoordinates) {
+                        // Add ll (longitude,latitude) and spn (span) parameters to constrain search area
+                        additionalParams = `&ll=${cityCoordinates.lng},${cityCoordinates.lat}&spn=0.2,0.2&results=5`;
+                    }
+
+                    // Use city as context with strict geographic boundaries
+                    const response = await fetch(
+                        `/api/yandex/suggest?query=${encodeURIComponent(
+                            formData.city + ', ' + query
+                        )}&type=street${additionalParams}`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch street suggestions');
+                    }
+
+                    const data = await response.json();
+                    console.log('Street suggestions:', data);
+
+                    if (data && data.results) {
+                        // Filter to show only streets AND verify they're in the correct city
+                        const streets = data.results.filter((result: any) => {
+                            // Make sure it's actually a street
+                            const isStreet =
+                                result.title &&
+                                (result.title.text.includes('улица') ||
+                                    result.title.text.includes('проспект') ||
+                                    result.title.text.includes('переулок'));
+
+                            // AND make sure it's in the correct city
+                            const isInCity =
+                                result.subtitle &&
+                                result.subtitle.text
+                                    .toLowerCase()
+                                    .includes(
+                                        (formData.city || '').toLowerCase()
+                                    );
+
+                            return isStreet && isInCity;
+                        });
+
+                        setStreetSuggestions(streets.slice(0, 5));
+                    }
+                } catch (error) {
+                    console.error('Error searching streets:', error);
+                } finally {
+                    setIsLoadingStreet(false);
+                }
+            }, 500);
+        },
+        [formData.city]
+    );
+
+    // Search for house numbers on a street
+    const searchHouseNumber = useCallback(
+        (query: string) => {
+            if (debounceHouseRef.current) {
+                clearTimeout(debounceHouseRef.current);
+            }
+
+            debounceHouseRef.current = setTimeout(async () => {
+                if (!query || !formData.city || !formData.street) {
+                    setHouseNumberSuggestions([]);
+                    return;
+                }
+
+                setIsLoadingHouseNumber(true);
+                try {
+                    // First get coordinates for the street to use as search bias
+                    let streetCoordinates = null;
+                    try {
+                        const geocodeResponse = await fetch(
+                            `/api/yandex/server-geocode?address=${encodeURIComponent(
+                                (formData.city || '') +
+                                    ', ' +
+                                    (formData.street || '')
+                            )}`
+                        );
+                        if (geocodeResponse.ok) {
+                            const geocodeData = await geocodeResponse.json();
+                            if (geocodeData.coordinates) {
+                                streetCoordinates = geocodeData.coordinates;
+                            }
+                        }
+                    } catch (geocodeError) {
+                        console.error(
+                            'Error getting street coordinates:',
+                            geocodeError
+                        );
+                    }
+
+                    // Build additional parameters for geographic constraints
+                    let additionalParams = '';
+                    if (streetCoordinates) {
+                        // Use tighter constraints for house numbers (smaller span)
+                        additionalParams = `&ll=${streetCoordinates.lng},${streetCoordinates.lat}&spn=0.05,0.05&results=5`;
+                    }
+
+                    // Combine city, street and house number for the search with strict bounds
+                    const searchText = `${formData.city}, ${formData.street}, ${query}`;
+                    const response = await fetch(
+                        `/api/yandex/suggest?query=${encodeURIComponent(
+                            searchText
+                        )}&type=house${additionalParams}`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch house suggestions');
+                    }
+
+                    const data = await response.json();
+                    console.log('House suggestions:', data);
+
+                    if (data && data.results) {
+                        // Apply stronger filters to ensure house numbers are on the correct street
+                        const houses = data.results.filter((result: any) => {
+                            // Must contain a number
+                            const hasNumber = /\d+/.test(result.title.text);
+
+                            // Must be for our specific street (strict match)
+                            const streetNameLower = (
+                                formData.street || ''
+                            ).toLowerCase();
+                            const isOnStreet =
+                                // Check in title
+                                (result.title &&
+                                    result.title.text
+                                        .toLowerCase()
+                                        .includes(streetNameLower)) ||
+                                // Check in subtitle
+                                (result.subtitle &&
+                                    result.subtitle.text
+                                        .toLowerCase()
+                                        .includes(streetNameLower));
+
+                            // Also verify it's in our city
+                            const cityNameLower = (
+                                formData.city || ''
+                            ).toLowerCase();
+                            const isInCity =
+                                result.subtitle &&
+                                result.subtitle.text
+                                    .toLowerCase()
+                                    .includes(cityNameLower);
+
+                            return hasNumber && isOnStreet && isInCity;
+                        });
+
+                        setHouseNumberSuggestions(houses.slice(0, 5));
+                    }
+                } catch (error) {
+                    console.error('Error searching house numbers:', error);
+                } finally {
+                    setIsLoadingHouseNumber(false);
+                }
+            }, 500);
+        },
+        [formData.city, formData.street]
+    );
+
+    // Handle selection of city suggestion
+    const handleSelectCity = async (suggestion: any) => {
+        // Extract city name
+        let cityName = suggestion.title.text;
+        // If the title contains comma-separated parts, take only the first part
+        if (cityName.includes(',')) {
+            cityName = cityName.split(',')[0].trim();
+        }
+
+        console.log(`Selected city: ${cityName}`);
+
+        // Update form data
+        const newFormData = {
+            ...formData,
+            city: cityName,
+            // Clear street and house number when city changes
+            street: '',
+            houseNumber: '',
+        };
+        setFormData(newFormData);
+
+        // Update search query with just the city
+        const newSearchQuery = cityName;
+        setSearchQuery(newSearchQuery);
+
+        // Update input directly
+        const addressInput = document.getElementById(
+            'address-input'
+        ) as HTMLInputElement;
+        if (addressInput) {
+            addressInput.value = newSearchQuery;
+        }
+
+        // Try to get coordinates for the city and update map
+        try {
+            const response = await fetch(
+                `/api/yandex/server-geocode?address=${encodeURIComponent(
+                    cityName
+                )}`
+            );
+            if (response.ok) {
+                const data = await response.json();
+                console.log('City geocoding result:', data);
+
+                if (data && data.coordinates && mapInstance) {
+                    // Update map to city center
+                    mapInstance.setCenter(
+                        [data.coordinates.lat, data.coordinates.lng],
+                        12
+                    );
+
+                    // Update visible coordinates
+                    setVisibleCoords({
+                        lat: data.coordinates.lat,
+                        lng: data.coordinates.lng,
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error geocoding city:', error);
+        }
+
+        // Clear suggestions
+        setCitySuggestions([]);
+    };
+
+    // Handle selection of street suggestion
+    const handleSelectStreet = async (suggestion: any) => {
+        // Extract street name
+        let streetName = suggestion.title.text;
+        // If the title contains the city or other info, clean it up
+        if (streetName.includes(',')) {
+            const parts = streetName.split(',').map((p: string) => p.trim());
+            // Try to find the part that looks like a street
+            const streetPart = parts.find(
+                (p: string) =>
+                    p.includes('улица') ||
+                    p.includes('проспект') ||
+                    p.includes('переулок')
+            );
+            streetName = streetPart || parts[0];
+        }
+
+        console.log(`Selected street: ${streetName}`);
+
+        // Update form data
+        const newFormData = {
+            ...formData,
+            street: streetName,
+            // Clear house number when street changes
+            houseNumber: '',
+        };
+        setFormData(newFormData);
+
+        // Update search query
+        const newSearchQuery = `${formData.city}, ${streetName}`;
+        setSearchQuery(newSearchQuery);
+
+        // Update input directly
+        const addressInput = document.getElementById(
+            'address-input'
+        ) as HTMLInputElement;
+        if (addressInput) {
+            addressInput.value = newSearchQuery;
+        }
+
+        // Try to get coordinates for the street and update map
+        try {
+            const response = await fetch(
+                `/api/yandex/server-geocode?address=${encodeURIComponent(
+                    newSearchQuery
+                )}`
+            );
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Street geocoding result:', data);
+
+                if (data && data.coordinates && mapInstance) {
+                    // Update map to street location
+                    mapInstance.setCenter(
+                        [data.coordinates.lat, data.coordinates.lng],
+                        15
+                    );
+
+                    // Update visible coordinates
+                    setVisibleCoords({
+                        lat: data.coordinates.lat,
+                        lng: data.coordinates.lng,
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error geocoding street:', error);
+        }
+
+        // Clear suggestions
+        setStreetSuggestions([]);
+    };
+
+    // Handle selection of house number suggestion
+    const handleSelectHouseNumber = async (suggestion: any) => {
+        // Extract house number - this might be in different formats
+        const fullText = suggestion.title.text;
+        let houseNumber = '';
+
+        // Try to extract the house number
+        const match = fullText.match(/\b(\d+\w*)\b/); // Extract the first number with optional letters
+        if (match) {
+            houseNumber = match[1];
+        } else {
+            // Just use the full text if no number found
+            houseNumber = fullText;
+        }
+
+        console.log(`Selected house number: ${houseNumber}`);
+
+        // Update form data
+        const newFormData = {
+            ...formData,
+            houseNumber: houseNumber,
+        };
+        setFormData(newFormData);
+
+        // Update search query
+        const newSearchQuery = `${formData.city}, ${formData.street}, ${houseNumber}`;
+        setSearchQuery(newSearchQuery);
+
+        // Update input directly
+        const addressInput = document.getElementById(
+            'address-input'
+        ) as HTMLInputElement;
+        if (addressInput) {
+            addressInput.value = newSearchQuery;
+        }
+
+        // Try to get coordinates for the full address and update map
+        try {
+            const response = await fetch(
+                `/api/yandex/server-geocode?address=${encodeURIComponent(
+                    newSearchQuery
+                )}`
+            );
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Full address geocoding result:', data);
+
+                if (data && data.coordinates && mapInstance) {
+                    // Update map to exact location with highest zoom
+                    mapInstance.setCenter(
+                        [data.coordinates.lat, data.coordinates.lng],
+                        17
+                    );
+
+                    // Update visible coordinates
+                    setVisibleCoords({
+                        lat: data.coordinates.lat,
+                        lng: data.coordinates.lng,
+                    });
+
+                    // Update form with structured address data
+                    const components = parseYandexAddress(data);
+                    setFormData((prev) => ({
+                        ...prev,
+                        ...components,
+                        houseNumber, // Ensure we keep the selected house number
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error geocoding full address:', error);
+        }
+
+        // Clear suggestions
+        setHouseNumberSuggestions([]);
     };
 
     return (
@@ -1166,55 +1866,142 @@ export default function AddressSelection() {
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                         City *
                     </label>
-                    <input
-                        type='text'
-                        name='city'
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        required
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        ZIP Code
-                    </label>
-                    <input
-                        type='text'
-                        name='zipCode'
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
+                    <div className='relative'>
+                        <input
+                            type='text'
+                            name='city'
+                            value={formData.city}
+                            onChange={(e) => {
+                                handleInputChange(e);
+                                searchCity(e.target.value);
+                            }}
+                            required
+                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
+                        />
+                        {isLoadingCity && (
+                            <div className='absolute right-3 top-3'>
+                                <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
+                            </div>
+                        )}
+                        {citySuggestions.length > 0 && (
+                            <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
+                                {citySuggestions.map((suggestion, index) => (
+                                    <div
+                                        key={index}
+                                        className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
+                                        onClick={() =>
+                                            handleSelectCity(suggestion)
+                                        }
+                                    >
+                                        <div className='font-medium'>
+                                            {suggestion.title.text}
+                                        </div>
+                                        {suggestion.subtitle && (
+                                            <div className='text-sm text-gray-500'>
+                                                {suggestion.subtitle.text}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                         Street *
                     </label>
-                    <input
-                        type='text'
-                        name='street'
-                        value={formData.street}
-                        onChange={handleInputChange}
-                        required
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
+                    <div className='relative'>
+                        <input
+                            type='text'
+                            name='street'
+                            value={formData.street}
+                            onChange={(e) => {
+                                handleInputChange(e);
+                                searchStreet(e.target.value);
+                            }}
+                            required
+                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
+                        />
+                        {isLoadingStreet && (
+                            <div className='absolute right-3 top-3'>
+                                <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
+                            </div>
+                        )}
+                        {streetSuggestions.length > 0 && (
+                            <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
+                                {streetSuggestions.map((suggestion, index) => (
+                                    <div
+                                        key={index}
+                                        className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
+                                        onClick={() =>
+                                            handleSelectStreet(suggestion)
+                                        }
+                                    >
+                                        <div className='font-medium'>
+                                            {suggestion.title.text}
+                                        </div>
+                                        {suggestion.subtitle && (
+                                            <div className='text-sm text-gray-500'>
+                                                {suggestion.subtitle.text}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div>
                     <label className='block text-sm font-medium text-gray-700 mb-1'>
                         House Number *
                     </label>
-                    <input
-                        type='text'
-                        name='houseNumber'
-                        value={formData.houseNumber}
-                        onChange={handleInputChange}
-                        required
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
+                    <div className='relative'>
+                        <input
+                            type='text'
+                            name='houseNumber'
+                            value={formData.houseNumber}
+                            onChange={(e) => {
+                                handleInputChange(e);
+                                searchHouseNumber(e.target.value);
+                            }}
+                            required
+                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
+                        />
+                        {isLoadingHouseNumber && (
+                            <div className='absolute right-3 top-3'>
+                                <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
+                            </div>
+                        )}
+                        {houseNumberSuggestions.length > 0 && (
+                            <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
+                                {houseNumberSuggestions.map(
+                                    (suggestion, index) => (
+                                        <div
+                                            key={index}
+                                            className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
+                                            onClick={() =>
+                                                handleSelectHouseNumber(
+                                                    suggestion
+                                                )
+                                            }
+                                        >
+                                            <div className='font-medium'>
+                                                {suggestion.title.text}
+                                            </div>
+                                            {suggestion.subtitle && (
+                                                <div className='text-sm text-gray-500'>
+                                                    {suggestion.subtitle.text}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div>

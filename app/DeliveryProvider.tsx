@@ -11,7 +11,6 @@ export interface DeliveryAddress {
     floor?: string;
     intercom?: string;
     city: string;
-    zipCode?: string;
     coordinates?: {
         lat: number;
         lng: number;

@@ -123,12 +123,48 @@ export const dataProvider: DataProvider = {
         try {
             console.log('Updating resource:', resource, 'with params:', params);
 
+            // Clean the data before sending to the API
+            const cleanData = { ...params.data };
+
+            // Remove any nested objects or relationships that shouldn't be sent directly
+            if (resource === 'orders') {
+                // These fields cause issues with Prisma update
+                delete cleanData.user;
+                delete cleanData.orderItems;
+                delete cleanData.id; // Don't include ID in the update payload
+
+                // Make sure dates are properly formatted
+                if (cleanData.dateOrdered) {
+                    cleanData.dateOrdered = new Date(
+                        cleanData.dateOrdered
+                    ).toISOString();
+                }
+                if (cleanData.dateArrived) {
+                    cleanData.dateArrived = new Date(
+                        cleanData.dateArrived
+                    ).toISOString();
+                }
+
+                // Convert string IDs to numbers if needed
+                if (cleanData.userId && typeof cleanData.userId === 'string') {
+                    cleanData.userId = parseInt(cleanData.userId);
+                }
+                if (
+                    cleanData.courierId &&
+                    typeof cleanData.courierId === 'string'
+                ) {
+                    cleanData.courierId = parseInt(cleanData.courierId);
+                }
+            }
+
+            console.log('Cleaned data for update:', cleanData);
+
             const response = await fetch(`${apiUrl}/${resource}/${params.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(params.data),
+                body: JSON.stringify(cleanData),
             });
 
             if (!response.ok) {

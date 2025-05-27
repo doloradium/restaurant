@@ -11,12 +11,16 @@ export default function ClientLayout({
 }) {
     const pathname = usePathname();
     const isAdminRoute = pathname.startsWith('/admin');
+    const isCookRoute = pathname.startsWith('/cook');
+    const isCourierRoute = pathname.startsWith('/courier');
+    const shouldShowHeaderFooter =
+        !isAdminRoute && !isCookRoute && !isCourierRoute;
 
     return (
         <>
-            {!isAdminRoute && <Header />}
+            {shouldShowHeaderFooter && <Header />}
             {children}
-            {!isAdminRoute && <Footer />}
+            {shouldShowHeaderFooter && <Footer />}
         </>
     );
 }

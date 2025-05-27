@@ -165,9 +165,13 @@ const ConfirmationPage = ({ params }: { params: { orderId: string } }) => {
                                 {order.shippingAddress.address}
                             </p>
                             <p className='text-gray-900'>
-                                {order.shippingAddress.city},{' '}
-                                {order.shippingAddress.state}{' '}
-                                {order.shippingAddress.zipCode}
+                                {order.shippingAddress.city}
+                                {order.shippingAddress.state
+                                    ? `, ${order.shippingAddress.state}`
+                                    : ''}
+                                {order.shippingAddress.zipCode
+                                    ? ` ${order.shippingAddress.zipCode}`
+                                    : ''}
                             </p>
                         </div>
                     </div>
