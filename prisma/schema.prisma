@@ -77,9 +77,11 @@ model Review {
   userId    Int
   createdAt DateTime @default(now())
   text      String
+  rating    Int      @default(5)
   item      Item     @relation(fields: [itemId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 }
+
 enum Role {
   USER
   ADMIN

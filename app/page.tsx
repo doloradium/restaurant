@@ -10,7 +10,7 @@ export default async function Home() {
     const categories = await categoriesResponse.json();
 
     const reviewsResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/reviews`,
+        `${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/reviews?limit=12`,
         {
             cache: 'no-store',
         }

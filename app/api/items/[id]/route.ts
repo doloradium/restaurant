@@ -30,9 +30,24 @@ export async function GET(
             SELECT id, "itemId", "imageUrl" FROM "Image" WHERE "itemId" = ${id}
         `;
 
+        // Calculate average rating from reviews
+        let avgRating = 5; // Default rating if no reviews
+        if (item.reviews && item.reviews.length > 0) {
+            const totalRating = item.reviews.reduce((sum, review) => {
+                // Use the review's rating if available, otherwise use 5 as default
+                const reviewRating =
+                    (review as any).rating !== undefined
+                        ? (review as any).rating
+                        : 5;
+                return sum + reviewRating;
+            }, 0);
+            avgRating = totalRating / item.reviews.length;
+        }
+
         return NextResponse.json({
             ...item,
             images: Array.isArray(images) ? images : [],
+            rating: avgRating, // Add calculated rating
         });
     } catch (error) {
         console.error('Error fetching item:', error);

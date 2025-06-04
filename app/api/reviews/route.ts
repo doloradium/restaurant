@@ -6,16 +6,39 @@ import { verifyAccessToken } from '@/lib/auth';
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url!);
     const id = searchParams.get('id');
+    const limitParam = searchParams.get('limit');
+
+    // Parse limit parameter
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
     let reviews;
     if (id) {
         reviews = await prisma.review.findMany({
             where: { itemId: Number(id) },
             include: { user: true },
+            orderBy: { id: 'desc' }, // Most recent reviews first
         });
     } else {
+        // Get reviews, potentially with a limit
         reviews = await prisma.review.findMany({
-            include: { user: true },
+            include: {
+                user: true,
+                item: {
+                    select: {
+                        name: true,
+                    },
+                },
+            },
+            orderBy: { id: 'desc' }, // Most recent reviews first
+            take: limit,
+        });
+
+        // Transform the reviews for display
+        reviews = reviews.map((review) => {
+            return {
+                ...review,
+                dishName: review.item?.name || '',
+            };
         });
     }
     return NextResponse.json(reviews);
@@ -47,6 +70,7 @@ export async function POST(req: NextRequest) {
 
         // Parse the request body
         const { itemId, rating, text } = await req.json();
+        const ratingValue = rating ? parseInt(rating, 10) : 5;
 
         // Validate required fields
         if (!itemId || !text) {
@@ -70,6 +94,7 @@ export async function POST(req: NextRequest) {
                 where: { id: existingReview.id },
                 data: {
                     text,
+                    rating: ratingValue,
                 },
                 include: { user: true },
             });
@@ -82,6 +107,7 @@ export async function POST(req: NextRequest) {
                     itemId: Number(itemId),
                     userId: Number(userId),
                     text,
+                    rating: ratingValue,
                 },
                 include: { user: true },
             });

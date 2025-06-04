@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FaStar, FaArrowRight } from 'react-icons/fa';
 import MenuItem from '@/components/menu/MenuItem';
+import ReviewCarousel from '@/components/ReviewCarousel';
 
 export default function HomeClient({
     categories,
@@ -129,35 +130,7 @@ export default function HomeClient({
                             наши довольные гости
                         </p>
                     </div>
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-8'>
-                        {reviews.map((testimonial) => (
-                            <div
-                                key={testimonial.id}
-                                className='bg-gray-800 p-6 rounded-lg'
-                            >
-                                <div className='flex mb-4'>
-                                    {[...Array(5)].map((_, i) => (
-                                        <FaStar
-                                            key={i}
-                                            className={
-                                                i < (testimonial.rating ?? 5)
-                                                    ? 'text-yellow-400'
-                                                    : 'text-gray-600'
-                                            }
-                                        />
-                                    ))}
-                                </div>
-                                <p className='text-gray-300 mb-4 italic'>
-                                    "{testimonial.text}"
-                                </p>
-                                <p className='font-bold'>
-                                    {testimonial.name ||
-                                        testimonial.user?.name ||
-                                        'Аноним'}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
+                    <ReviewCarousel reviews={reviews} />
                 </div>
             </section>
 

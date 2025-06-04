@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
     FaStar,
     FaShoppingCart,
     FaArrowLeft,
-    FaHeart,
-    FaRegHeart,
     FaPlus,
     FaMinus,
 } from 'react-icons/fa';
@@ -124,20 +122,9 @@ export default function MenuItemClient({
     const router = useRouter();
     const [quantity, setQuantity] = useState(1);
     const [activeTab, setActiveTab] = useState('description');
-    const [isFavorite, setIsFavorite] = useState(false);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const { addToCart } = useCart();
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-
-    useEffect(() => {
-        // Debug for item info
-        console.log('Item details:', {
-            id: item.id,
-            name: item.name,
-            categoryId: item.categoryId,
-            category: item.category,
-        });
-    }, [item]);
 
     if (!item) {
         return (
@@ -179,13 +166,6 @@ export default function MenuItemClient({
                     : undefined,
             categoryId: item.categoryId || item.category?.id,
         });
-    };
-
-    const toggleFavorite = () => {
-        setIsFavorite(!isFavorite);
-        toast.success(
-            isFavorite ? 'Удалено из избранного' : 'Добавлено в избранное'
-        );
     };
 
     const handleReviewSubmit = async (data: {
@@ -299,17 +279,6 @@ export default function MenuItemClient({
                                         </span>
                                     </div>
                                 )}
-
-                                <button
-                                    onClick={toggleFavorite}
-                                    className='absolute top-4 right-4 h-10 w-10 rounded-full bg-white shadow-md flex items-center justify-center text-gray-600 hover:text-red-600 transition duration-200'
-                                >
-                                    {isFavorite ? (
-                                        <FaHeart className='text-red-600' />
-                                    ) : (
-                                        <FaRegHeart />
-                                    )}
-                                </button>
                             </div>
 
                             {item.images && item.images.length > 0 && (
@@ -359,20 +328,21 @@ export default function MenuItemClient({
                                     <FaStar
                                         key={i}
                                         className={`${
-                                            i < Math.floor(item.rating)
+                                            i < Math.floor(item.rating || 5)
                                                 ? 'text-yellow-400'
                                                 : 'text-gray-300'
                                         } ${
-                                            i === Math.floor(item.rating) &&
-                                            item.rating % 1 > 0
+                                            i ===
+                                                Math.floor(item.rating || 5) &&
+                                            (item.rating || 5) % 1 > 0
                                                 ? 'text-yellow-200'
                                                 : ''
                                         }`}
                                     />
                                 ))}
                                 <span className='ml-2 text-gray-600'>
-                                    {item.rating} ({item.reviews?.length || 0}{' '}
-                                    отзывов)
+                                    {item.rating || 5} (
+                                    {item.reviews?.length || 0} отзывов)
                                 </span>
                             </div>
 
@@ -464,26 +434,6 @@ export default function MenuItemClient({
                                 </button>
                                 <button
                                     className={`pb-2 px-4 text-sm font-medium ${
-                                        activeTab === 'ingredients'
-                                            ? 'text-red-600 border-b-2 border-red-600'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                    onClick={() => setActiveTab('ingredients')}
-                                >
-                                    Ингредиенты
-                                </button>
-                                <button
-                                    className={`pb-2 px-4 text-sm font-medium ${
-                                        activeTab === 'nutrition'
-                                            ? 'text-red-600 border-b-2 border-red-600'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                    onClick={() => setActiveTab('nutrition')}
-                                >
-                                    Питательность
-                                </button>
-                                <button
-                                    className={`pb-2 px-4 text-sm font-medium ${
                                         activeTab === 'reviews'
                                             ? 'text-red-600 border-b-2 border-red-600'
                                             : 'text-gray-500 hover:text-gray-700'
@@ -498,98 +448,6 @@ export default function MenuItemClient({
                                 {activeTab === 'description' && (
                                     <div className='prose max-w-none text-gray-600'>
                                         <p>{item.description}</p>
-                                    </div>
-                                )}
-
-                                {activeTab === 'ingredients' && (
-                                    <div>
-                                        <h3 className='font-medium text-gray-900 mb-3'>
-                                            Ингредиенты
-                                        </h3>
-                                        <ul className='list-disc pl-5 space-y-1 text-gray-600'>
-                                            {item.ingredients?.map(
-                                                (
-                                                    ingredient: string,
-                                                    index: number
-                                                ) => (
-                                                    <li key={index}>
-                                                        {ingredient}
-                                                    </li>
-                                                )
-                                            )}
-                                        </ul>
-                                        <p className='mt-4 text-sm text-gray-500'>
-                                            * Информация об аллергенах: Может
-                                            содержать следы сои, рыбы, моллюсков
-                                            и глютена. Пожалуйста, сообщите
-                                            персоналу о любых аллергиях.
-                                        </p>
-                                    </div>
-                                )}
-
-                                {activeTab === 'nutrition' && (
-                                    <div>
-                                        <h3 className='font-medium text-gray-900 mb-3'>
-                                            Пищевая ценность
-                                        </h3>
-                                        <p className='text-sm text-gray-500 mb-3'>
-                                            На порцию (1 штука)
-                                        </p>
-
-                                        <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4'>
-                                            <div className='bg-gray-50 p-3 rounded-md text-center'>
-                                                <div className='text-sm text-gray-500'>
-                                                    Калории
-                                                </div>
-                                                <div className='font-bold text-gray-900'>
-                                                    {
-                                                        item.nutritionalInfo
-                                                            ?.calories
-                                                    }
-                                                </div>
-                                            </div>
-                                            <div className='bg-gray-50 p-3 rounded-md text-center'>
-                                                <div className='text-sm text-gray-500'>
-                                                    Белки
-                                                </div>
-                                                <div className='font-bold text-gray-900'>
-                                                    {
-                                                        item.nutritionalInfo
-                                                            ?.protein
-                                                    }
-                                                </div>
-                                            </div>
-                                            <div className='bg-gray-50 p-3 rounded-md text-center'>
-                                                <div className='text-sm text-gray-500'>
-                                                    Жиры
-                                                </div>
-                                                <div className='font-bold text-gray-900'>
-                                                    {item.nutritionalInfo?.fat}
-                                                </div>
-                                            </div>
-                                            <div className='bg-gray-50 p-3 rounded-md text-center'>
-                                                <div className='text-sm text-gray-500'>
-                                                    Углеводы
-                                                </div>
-                                                <div className='font-bold text-gray-900'>
-                                                    {
-                                                        item.nutritionalInfo
-                                                            ?.carbs
-                                                    }
-                                                </div>
-                                            </div>
-                                            <div className='bg-gray-50 p-3 rounded-md text-center'>
-                                                <div className='text-sm text-gray-500'>
-                                                    Натрий
-                                                </div>
-                                                <div className='font-bold text-gray-900'>
-                                                    {
-                                                        item.nutritionalInfo
-                                                            ?.sodium
-                                                    }
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
 
@@ -637,7 +495,8 @@ export default function MenuItemClient({
                                                                                 }
                                                                                 className={
                                                                                     i <
-                                                                                    review.rating
+                                                                                    (review.rating ||
+                                                                                        5)
                                                                                         ? 'text-yellow-400'
                                                                                         : 'text-gray-300'
                                                                                 }
