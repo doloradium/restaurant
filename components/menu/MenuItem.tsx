@@ -75,7 +75,7 @@ export default function MenuItem({
                 </p>
                 <div className='flex justify-between items-center'>
                     <span className='font-bold text-red-600'>
-                        ${price.toFixed(2)}
+                        ₽{price.toFixed(2)}
                     </span>
                     <div className='flex items-center'>
                         <div className='mr-2 flex items-center border rounded'>

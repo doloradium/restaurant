@@ -40,11 +40,11 @@ import {
 export const ItemList = () => (
     <List>
         <Datagrid rowClick='edit' bulkActionButtons={<BulkDeleteButton />}>
-            <TextField source='id' />
-            <TextField source='name' />
-            <TextField source='description' />
-            <NumberField source='price' />
-            <TextField source='categoryId' />
+            <TextField source='id' label='ID' />
+            <TextField source='name' label='Название' />
+            <TextField source='description' label='Описание' />
+            <NumberField source='price' label='Цена' />
+            <TextField source='categoryId' label='Категория ID' />
         </Datagrid>
     </List>
 );
@@ -62,10 +62,14 @@ const ItemEditContent = () => {
     return (
         <>
             <SimpleForm>
-                <TextInput source='name' />
-                <TextInput source='description' multiline />
-                <NumberInput source='price' />
-                <ReferenceInput source='categoryId' reference='categories'>
+                <TextInput source='name' label='Название' />
+                <TextInput source='description' label='Описание' multiline />
+                <NumberInput source='price' label='Цена' />
+                <ReferenceInput
+                    source='categoryId'
+                    reference='categories'
+                    label='Категория'
+                >
                     <SelectInput optionText='name' />
                 </ReferenceInput>
             </SimpleForm>
@@ -73,7 +77,7 @@ const ItemEditContent = () => {
             {itemId && (
                 <Box sx={{ mt: 2, p: 2 }}>
                     <Typography variant='h6' sx={{ mb: 2 }}>
-                        Images Management
+                        Управление изображениями
                     </Typography>
                     <Divider sx={{ mb: 3 }} />
                     <ImageGallery
@@ -98,7 +102,7 @@ export const ItemEdit = () => (
 
 const SaveToolbar = (props: ToolbarProps) => (
     <Toolbar {...props}>
-        <SaveButton label='Save Item' />
+        <SaveButton label='Сохранить' />
     </Toolbar>
 );
 
@@ -133,17 +137,21 @@ export const ItemCreate = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to upload images');
+                throw new Error(
+                    errorData.error || 'Не удалось загрузить изображения'
+                );
             }
 
             const result = await response.json();
-            notify(`Successfully uploaded ${result.images.length} images`, {
+            notify(`Успешно загружено ${result.images.length} изображений`, {
                 type: 'success',
             });
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : 'Unknown error';
-            notify(`Error uploading images: ${message}`, { type: 'error' });
+                error instanceof Error ? error.message : 'Неизвестная ошибка';
+            notify(`Ошибка загрузки изображений: ${message}`, {
+                type: 'error',
+            });
         }
     };
 
@@ -158,7 +166,7 @@ export const ItemCreate = () => {
                 {
                     onSuccess: async (response) => {
                         const itemId = Number(response.id);
-                        notify('Item created successfully', {
+                        notify('Пункт меню успешно создан', {
                             type: 'success',
                         });
 
@@ -174,8 +182,8 @@ export const ItemCreate = () => {
                         const errorMessage =
                             error instanceof Error
                                 ? error.message
-                                : 'Unknown error';
-                        notify(`Error creating item: ${errorMessage}`, {
+                                : 'Неизвестная ошибка';
+                        notify(`Ошибка создания пункта меню: ${errorMessage}`, {
                             type: 'error',
                         });
                         setLoading(false);
@@ -198,7 +206,7 @@ export const ItemCreate = () => {
             >
                 <CircularProgress />
                 <Typography sx={{ ml: 2 }}>
-                    Creating item and uploading images...
+                    Создание пункта меню и загрузка изображений...
                 </Typography>
             </Box>
         );
@@ -208,16 +216,35 @@ export const ItemCreate = () => {
         <Create>
             <div>
                 <SimpleForm onSubmit={handleSubmit} toolbar={<SaveToolbar />}>
-                    <TextInput source='name' fullWidth required />
-                    <TextInput source='description' fullWidth multiline />
-                    <NumberInput source='price' fullWidth required />
-                    <ReferenceInput source='categoryId' reference='categories'>
+                    <TextInput
+                        source='name'
+                        label='Название'
+                        fullWidth
+                        required
+                    />
+                    <TextInput
+                        source='description'
+                        label='Описание'
+                        fullWidth
+                        multiline
+                    />
+                    <NumberInput
+                        source='price'
+                        label='Цена'
+                        fullWidth
+                        required
+                    />
+                    <ReferenceInput
+                        source='categoryId'
+                        reference='categories'
+                        label='Категория'
+                    >
                         <SelectInput optionText='name' fullWidth required />
                     </ReferenceInput>
 
                     <Box sx={{ mt: 3, mb: 2 }}>
                         <Typography variant='h6' sx={{ mb: 2 }}>
-                            Select Images to Upload
+                            Выберите изображения для загрузки
                         </Typography>
                         <Divider sx={{ mb: 3 }} />
 
@@ -236,9 +263,9 @@ export const ItemCreate = () => {
                                 <Typography variant='body2'>
                                     {selectedFiles.length}{' '}
                                     {selectedFiles.length === 1
-                                        ? 'file'
-                                        : 'files'}{' '}
-                                    selected
+                                        ? 'файл'
+                                        : 'файлов'}{' '}
+                                    выбрано
                                 </Typography>
                                 <Box
                                     sx={{

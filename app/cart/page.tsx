@@ -72,7 +72,7 @@ const CartPage = () => {
                                     {item.description}
                                 </p>
                                 <p className='text-lg font-medium text-red-600 mt-1'>
-                                    ${item.price.toFixed(2)}
+                                    ₽{item.price.toFixed(2)}
                                 </p>
                             </div>
 
@@ -120,7 +120,7 @@ const CartPage = () => {
                             Итого
                         </h3>
                         <span className='text-xl font-bold text-red-600'>
-                            ${totalPrice.toFixed(2)}
+                            ₽{totalPrice.toFixed(2)}
                         </span>
                     </div>
 

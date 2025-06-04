@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -14,6 +14,103 @@ import {
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { useCart } from '@/app/CartProvider';
+
+// Add this ReviewModal component
+const ReviewModal = ({
+    isOpen,
+    onClose,
+    onSubmit,
+    itemId,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (data: { rating: number; text: string }) => void;
+    itemId: string;
+}) => {
+    const [rating, setRating] = useState(5);
+    const [reviewText, setReviewText] = useState('');
+
+    if (!isOpen) return null;
+
+    return (
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+            <div className='bg-white rounded-lg shadow-xl max-w-md w-full'>
+                <div className='p-6'>
+                    <h3 className='text-xl font-bold text-gray-900 mb-4'>
+                        Написать отзыв
+                    </h3>
+
+                    <div className='mb-4'>
+                        <label className='block text-sm font-medium text-gray-700 mb-2'>
+                            Оценка
+                        </label>
+                        <div className='flex items-center'>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type='button'
+                                    onClick={() => setRating(star)}
+                                    className='p-1'
+                                >
+                                    <FaStar
+                                        size={24}
+                                        className={
+                                            star <= rating
+                                                ? 'text-yellow-400'
+                                                : 'text-gray-300'
+                                        }
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className='mb-4'>
+                        <label
+                            htmlFor='review-text'
+                            className='block text-sm font-medium text-gray-700 mb-2'
+                        >
+                            Ваш отзыв
+                        </label>
+                        <textarea
+                            id='review-text'
+                            rows={4}
+                            value={reviewText}
+                            onChange={(e) => setReviewText(e.target.value)}
+                            className='w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500'
+                            placeholder='Расскажите о вашем опыте с этим блюдом...'
+                        ></textarea>
+                    </div>
+
+                    <div className='flex justify-end space-x-3 mt-6'>
+                        <button
+                            type='button'
+                            onClick={onClose}
+                            className='px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200'
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            type='button'
+                            onClick={() => {
+                                if (reviewText.trim() === '') {
+                                    toast.error(
+                                        'Пожалуйста, добавьте текст отзыва'
+                                    );
+                                    return;
+                                }
+                                onSubmit({ rating, text: reviewText });
+                            }}
+                            className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700'
+                        >
+                            Отправить отзыв
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default function MenuItemClient({
     item,
@@ -30,23 +127,33 @@ export default function MenuItemClient({
     const [isFavorite, setIsFavorite] = useState(false);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const { addToCart } = useCart();
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+    useEffect(() => {
+        // Debug for item info
+        console.log('Item details:', {
+            id: item.id,
+            name: item.name,
+            categoryId: item.categoryId,
+            category: item.category,
+        });
+    }, [item]);
 
     if (!item) {
         return (
             <div className='min-h-screen flex items-center justify-center'>
                 <div className='text-center'>
                     <h2 className='text-2xl font-bold text-gray-700 mb-4'>
-                        Item Not Found
+                        Товар не найден
                     </h2>
                     <p className='text-gray-500 mb-6'>
-                        The item you're looking for doesn't exist or has been
-                        removed.
+                        Товар, который вы ищете, не существует или был удален.
                     </p>
                     <Link
                         href='/menu'
                         className='bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition duration-200'
                     >
-                        Return to Menu
+                        Вернуться в меню
                     </Link>
                 </div>
             </div>
@@ -77,8 +184,59 @@ export default function MenuItemClient({
     const toggleFavorite = () => {
         setIsFavorite(!isFavorite);
         toast.success(
-            isFavorite ? 'Removed from favorites' : 'Added to favorites'
+            isFavorite ? 'Удалено из избранного' : 'Добавлено в избранное'
         );
+    };
+
+    const handleReviewSubmit = async (data: {
+        rating: number;
+        text: string;
+    }) => {
+        try {
+            const response = await fetch(`/api/reviews`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    itemId: item.id,
+                    rating: data.rating,
+                    text: data.text,
+                }),
+            });
+
+            const responseData = await response.json();
+            console.log('Review submission response:', responseData);
+
+            if (!response.ok) {
+                throw new Error(
+                    responseData.error || 'Failed to submit review'
+                );
+            }
+
+            toast.success('Отзыв успешно добавлен!');
+            setIsReviewModalOpen(false);
+
+            // Refresh the page to show the new review
+            router.refresh();
+        } catch (error: any) {
+            console.error('Error submitting review:', error);
+
+            // Show a more descriptive error message
+            let errorMessage = 'Не удалось отправить отзыв.';
+
+            if (
+                error.message &&
+                error.message.includes('Необходимо авторизоваться')
+            ) {
+                errorMessage =
+                    'Для отправки отзыва необходимо войти в систему.';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            toast.error(errorMessage);
+        }
     };
 
     return (
@@ -87,17 +245,18 @@ export default function MenuItemClient({
                 <div className='container mx-auto px-4'>
                     <div className='flex items-center text-sm text-gray-600'>
                         <Link href='/' className='hover:text-red-600'>
-                            Home
+                            Главная
                         </Link>
                         <span className='mx-2'>/</span>
                         <Link href='/menu' className='hover:text-red-600'>
-                            Menu
+                            Меню
                         </Link>
                         <span className='mx-2'>/</span>
                         <Link
                             href={`/menu?category=${
-                                item.category?.name?.toLowerCase() ||
-                                item.category?.toLowerCase()
+                                item.categoryId ||
+                                (item.category && item.category.id) ||
+                                ''
                             }`}
                             className='hover:text-red-600'
                         >
@@ -116,7 +275,7 @@ export default function MenuItemClient({
                     onClick={() => router.back()}
                     className='flex items-center text-gray-600 hover:text-red-600 mb-6'
                 >
-                    <FaArrowLeft className='mr-2' /> Back to Menu
+                    <FaArrowLeft className='mr-2' /> Назад к меню
                 </button>
 
                 <div className='grid grid-cols-1 lg:grid-cols-2 gap-12'>
@@ -136,7 +295,7 @@ export default function MenuItemClient({
                                 ) : (
                                     <div className='w-full h-full bg-gray-200 flex items-center justify-center'>
                                         <span className='text-gray-500'>
-                                            No image available
+                                            Нет изображения
                                         </span>
                                     </div>
                                 )}
@@ -213,7 +372,7 @@ export default function MenuItemClient({
                                 ))}
                                 <span className='ml-2 text-gray-600'>
                                     {item.rating} ({item.reviews?.length || 0}{' '}
-                                    reviews)
+                                    отзывов)
                                 </span>
                             </div>
 
@@ -223,7 +382,7 @@ export default function MenuItemClient({
                         </div>
 
                         <div className='text-2xl font-bold text-red-600 mb-4'>
-                            ${item.price.toFixed(2)}
+                            ₽{item.price.toFixed(2)}
                         </div>
 
                         <p className='text-gray-600 mb-6'>{item.description}</p>
@@ -231,24 +390,24 @@ export default function MenuItemClient({
                         <div className='mb-6 flex flex-wrap gap-3'>
                             {item.isVegetarian && (
                                 <span className='bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full'>
-                                    Vegetarian
+                                    Вегетарианское
                                 </span>
                             )}
                             {item.isGlutenFree && (
                                 <span className='bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full'>
-                                    Gluten-Free
+                                    Без глютена
                                 </span>
                             )}
                             {item.isSpicy && (
                                 <span className='bg-red-100 text-red-800 text-xs px-3 py-1 rounded-full'>
-                                    Spicy
+                                    Острое
                                 </span>
                             )}
                         </div>
 
                         <div className='mb-6'>
                             <label className='block text-sm font-medium text-gray-700 mb-2'>
-                                Quantity
+                                Количество
                             </label>
                             <div className='flex items-center'>
                                 <button
@@ -286,7 +445,7 @@ export default function MenuItemClient({
                                 className='w-full py-3 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 transition duration-200 flex items-center justify-center'
                             >
                                 <FaShoppingCart className='mr-2' />
-                                Add to Cart - $
+                                Добавить в корзину - ₽
                                 {(item.price * quantity).toFixed(2)}
                             </button>
                         </div>
@@ -301,7 +460,7 @@ export default function MenuItemClient({
                                     }`}
                                     onClick={() => setActiveTab('description')}
                                 >
-                                    Description
+                                    Описание
                                 </button>
                                 <button
                                     className={`pb-2 px-4 text-sm font-medium ${
@@ -311,7 +470,7 @@ export default function MenuItemClient({
                                     }`}
                                     onClick={() => setActiveTab('ingredients')}
                                 >
-                                    Ingredients
+                                    Ингредиенты
                                 </button>
                                 <button
                                     className={`pb-2 px-4 text-sm font-medium ${
@@ -321,7 +480,7 @@ export default function MenuItemClient({
                                     }`}
                                     onClick={() => setActiveTab('nutrition')}
                                 >
-                                    Nutrition
+                                    Питательность
                                 </button>
                                 <button
                                     className={`pb-2 px-4 text-sm font-medium ${
@@ -331,7 +490,7 @@ export default function MenuItemClient({
                                     }`}
                                     onClick={() => setActiveTab('reviews')}
                                 >
-                                    Reviews ({reviews.length})
+                                    Отзывы ({reviews.length})
                                 </button>
                             </div>
 
@@ -345,7 +504,7 @@ export default function MenuItemClient({
                                 {activeTab === 'ingredients' && (
                                     <div>
                                         <h3 className='font-medium text-gray-900 mb-3'>
-                                            Ingredients
+                                            Ингредиенты
                                         </h3>
                                         <ul className='list-disc pl-5 space-y-1 text-gray-600'>
                                             {item.ingredients?.map(
@@ -360,10 +519,10 @@ export default function MenuItemClient({
                                             )}
                                         </ul>
                                         <p className='mt-4 text-sm text-gray-500'>
-                                            * Allergy information: May contain
-                                            traces of soy, fish, shellfish, and
-                                            gluten. Please inform staff of any
-                                            allergies.
+                                            * Информация об аллергенах: Может
+                                            содержать следы сои, рыбы, моллюсков
+                                            и глютена. Пожалуйста, сообщите
+                                            персоналу о любых аллергиях.
                                         </p>
                                     </div>
                                 )}
@@ -371,16 +530,16 @@ export default function MenuItemClient({
                                 {activeTab === 'nutrition' && (
                                     <div>
                                         <h3 className='font-medium text-gray-900 mb-3'>
-                                            Nutritional Information
+                                            Пищевая ценность
                                         </h3>
                                         <p className='text-sm text-gray-500 mb-3'>
-                                            Per serving (1 piece)
+                                            На порцию (1 штука)
                                         </p>
 
                                         <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4'>
                                             <div className='bg-gray-50 p-3 rounded-md text-center'>
                                                 <div className='text-sm text-gray-500'>
-                                                    Calories
+                                                    Калории
                                                 </div>
                                                 <div className='font-bold text-gray-900'>
                                                     {
@@ -391,7 +550,7 @@ export default function MenuItemClient({
                                             </div>
                                             <div className='bg-gray-50 p-3 rounded-md text-center'>
                                                 <div className='text-sm text-gray-500'>
-                                                    Protein
+                                                    Белки
                                                 </div>
                                                 <div className='font-bold text-gray-900'>
                                                     {
@@ -402,7 +561,7 @@ export default function MenuItemClient({
                                             </div>
                                             <div className='bg-gray-50 p-3 rounded-md text-center'>
                                                 <div className='text-sm text-gray-500'>
-                                                    Fat
+                                                    Жиры
                                                 </div>
                                                 <div className='font-bold text-gray-900'>
                                                     {item.nutritionalInfo?.fat}
@@ -410,7 +569,7 @@ export default function MenuItemClient({
                                             </div>
                                             <div className='bg-gray-50 p-3 rounded-md text-center'>
                                                 <div className='text-sm text-gray-500'>
-                                                    Carbs
+                                                    Углеводы
                                                 </div>
                                                 <div className='font-bold text-gray-900'>
                                                     {
@@ -421,7 +580,7 @@ export default function MenuItemClient({
                                             </div>
                                             <div className='bg-gray-50 p-3 rounded-md text-center'>
                                                 <div className='text-sm text-gray-500'>
-                                                    Sodium
+                                                    Натрий
                                                 </div>
                                                 <div className='font-bold text-gray-900'>
                                                     {
@@ -437,13 +596,13 @@ export default function MenuItemClient({
                                 {activeTab === 'reviews' && (
                                     <div>
                                         <h3 className='font-medium text-gray-900 mb-3'>
-                                            Customer Reviews
+                                            Отзывы клиентов
                                         </h3>
 
                                         {reviews.length === 0 ? (
                                             <p className='text-gray-500'>
-                                                No reviews yet. Be the first to
-                                                leave a review!
+                                                Пока нет отзывов. Будьте первым,
+                                                кто оставит отзыв!
                                             </p>
                                         ) : (
                                             <div className='space-y-6'>
@@ -506,8 +665,13 @@ export default function MenuItemClient({
                                         )}
 
                                         <div className='mt-6'>
-                                            <button className='text-red-600 font-medium hover:text-red-700'>
-                                                Write a Review
+                                            <button
+                                                className='text-red-600 font-medium hover:text-red-700'
+                                                onClick={() =>
+                                                    setIsReviewModalOpen(true)
+                                                }
+                                            >
+                                                Написать отзыв
                                             </button>
                                         </div>
                                     </div>
@@ -522,7 +686,7 @@ export default function MenuItemClient({
                 <div className='bg-gray-50 py-12'>
                     <div className='container mx-auto px-4'>
                         <h2 className='text-2xl font-bold text-gray-900 mb-8'>
-                            You May Also Like
+                            Вам также может понравиться
                         </h2>
 
                         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6'>
@@ -562,12 +726,12 @@ export default function MenuItemClient({
                                                 </Link>
                                                 <div className='flex items-center justify-between mt-2'>
                                                     <span className='text-red-600 font-bold'>
-                                                        ${item.price.toFixed(2)}
+                                                        ₽{item.price.toFixed(2)}
                                                     </span>
                                                     <button
                                                         onClick={() => {
                                                             toast.success(
-                                                                `${item.name} added to cart!`
+                                                                `${item.name} добавлен в корзину!`
                                                             );
                                                         }}
                                                         className='bg-gray-100 hover:bg-gray-200 text-gray-800 p-2 rounded-full transition-colors duration-200'
@@ -583,6 +747,13 @@ export default function MenuItemClient({
                     </div>
                 </div>
             )}
+
+            <ReviewModal
+                isOpen={isReviewModalOpen}
+                onClose={() => setIsReviewModalOpen(false)}
+                onSubmit={handleReviewSubmit}
+                itemId={item.id}
+            />
         </div>
     );
 }

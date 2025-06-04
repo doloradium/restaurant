@@ -9,9 +9,11 @@
         "lint": "next lint"
     },
     "dependencies": {
+        "@mantine/core": "^8.0.1",
         "@mui/icons-material": "^7.1.0",
         "@mui/material": "^7.1.0",
         "@prisma/client": "^6.8.2",
+        "@tabler/icons-react": "^3.33.0",
         "@types/bcrypt": "^5.0.2",
         "@types/jsonwebtoken": "^9.0.9",
         "bcrypt": "^6.0.0",

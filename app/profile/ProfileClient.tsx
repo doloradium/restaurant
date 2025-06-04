@@ -69,11 +69,11 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 throw new Error('Failed to update profile');
             }
 
-            toast.success('Profile updated successfully!');
+            toast.success('Профиль успешно обновлен!');
             setEditMode(false);
             router.refresh();
         } catch (error) {
-            toast.error('Failed to update profile');
+            toast.error('Ошибка обновления профиля');
             console.error('Error updating profile:', error);
         }
     };
@@ -89,11 +89,11 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 throw new Error('Failed to logout');
             }
 
-            toast.success('Logged out successfully');
+            toast.success('Вы успешно вышли из системы');
             router.push('/');
             router.refresh();
         } catch (error) {
-            toast.error('Failed to logout');
+            toast.error('Ошибка выхода из системы');
             console.error('Error logging out:', error);
         }
     };
@@ -132,7 +132,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 }`}
                                             >
                                                 <FaUser className='mr-3' />{' '}
-                                                Profile
+                                                Профиль
                                             </button>
                                         </li>
                                         <li>
@@ -147,7 +147,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 }`}
                                             >
                                                 <FaHistory className='mr-3' />{' '}
-                                                Order History
+                                                История заказов
                                             </button>
                                         </li>
                                         <li>
@@ -155,8 +155,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 href='/'
                                                 className='w-full text-left px-4 py-2 rounded-md flex items-center text-gray-700 hover:bg-gray-50'
                                             >
-                                                <FaHome className='mr-3' /> Back
-                                                to Home
+                                                <FaHome className='mr-3' /> На
+                                                главную
                                             </Link>
                                         </li>
                                         <li>
@@ -165,7 +165,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 className='w-full text-left px-4 py-2 rounded-md flex items-center text-red-600 hover:bg-red-50'
                                             >
                                                 <FaSignOutAlt className='mr-3' />{' '}
-                                                Logout
+                                                Выйти
                                             </button>
                                         </li>
                                     </ul>
@@ -179,7 +179,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                 <div className='bg-white rounded-lg shadow-sm'>
                                     <div className='p-6 border-b border-gray-200 flex justify-between items-center'>
                                         <h1 className='text-2xl font-bold text-gray-900'>
-                                            My Profile
+                                            Мой профиль
                                         </h1>
                                         {!editMode && (
                                             <button
@@ -188,8 +188,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 }
                                                 className='flex items-center text-red-600 hover:text-red-700'
                                             >
-                                                <FaEdit className='mr-1' /> Edit
-                                                Profile
+                                                <FaEdit className='mr-1' />{' '}
+                                                Редактировать профиль
                                             </button>
                                         )}
                                     </div>
@@ -203,7 +203,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             htmlFor='name'
                                                             className='block text-sm font-medium text-gray-700 mb-1'
                                                         >
-                                                            First Name
+                                                            Имя
                                                         </label>
                                                         <input
                                                             type='text'
@@ -223,7 +223,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             htmlFor='surname'
                                                             className='block text-sm font-medium text-gray-700 mb-1'
                                                         >
-                                                            Last Name
+                                                            Фамилия
                                                         </label>
                                                         <input
                                                             type='text'
@@ -243,7 +243,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             htmlFor='email'
                                                             className='block text-sm font-medium text-gray-700 mb-1'
                                                         >
-                                                            Email Address
+                                                            Email адрес
                                                         </label>
                                                         <input
                                                             type='email'
@@ -263,7 +263,7 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             htmlFor='phoneNumber'
                                                             className='block text-sm font-medium text-gray-700 mb-1'
                                                         >
-                                                            Phone Number
+                                                            Телефон
                                                         </label>
                                                         <input
                                                             type='tel'
@@ -278,189 +278,149 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
                                                         />
                                                     </div>
-                                                    <div>
-                                                        <label
-                                                            htmlFor='street'
-                                                            className='block text-sm font-medium text-gray-700 mb-1'
-                                                        >
-                                                            Street
-                                                        </label>
-                                                        <input
-                                                            type='text'
-                                                            id='street'
-                                                            name='street'
-                                                            value={
-                                                                formData.street
-                                                            }
-                                                            onChange={
-                                                                handleChange
-                                                            }
-                                                            className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label
-                                                            htmlFor='house'
-                                                            className='block text-sm font-medium text-gray-700 mb-1'
-                                                        >
-                                                            House Number
-                                                        </label>
-                                                        <input
-                                                            type='text'
-                                                            id='house'
-                                                            name='house'
-                                                            value={
-                                                                formData.house
-                                                            }
-                                                            onChange={
-                                                                handleChange
-                                                            }
-                                                            className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label
-                                                            htmlFor='apartment'
-                                                            className='block text-sm font-medium text-gray-700 mb-1'
-                                                        >
-                                                            Apartment Number
-                                                        </label>
-                                                        <input
-                                                            type='text'
-                                                            id='apartment'
-                                                            name='apartment'
-                                                            value={
-                                                                formData.apartment
-                                                            }
-                                                            onChange={
-                                                                handleChange
-                                                            }
-                                                            className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
-                                                        />
+                                                </div>
+
+                                                <div className='mb-6'>
+                                                    <h3 className='text-lg font-medium text-gray-900 mb-2'>
+                                                        Адрес доставки
+                                                    </h3>
+                                                    <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+                                                        <div className='md:col-span-2'>
+                                                            <label
+                                                                htmlFor='street'
+                                                                className='block text-sm font-medium text-gray-700 mb-1'
+                                                            >
+                                                                Улица
+                                                            </label>
+                                                            <input
+                                                                type='text'
+                                                                id='street'
+                                                                name='street'
+                                                                value={
+                                                                    formData.street
+                                                                }
+                                                                onChange={
+                                                                    handleChange
+                                                                }
+                                                                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label
+                                                                htmlFor='house'
+                                                                className='block text-sm font-medium text-gray-700 mb-1'
+                                                            >
+                                                                Дом
+                                                            </label>
+                                                            <input
+                                                                type='text'
+                                                                id='house'
+                                                                name='house'
+                                                                value={
+                                                                    formData.house
+                                                                }
+                                                                onChange={
+                                                                    handleChange
+                                                                }
+                                                                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label
+                                                                htmlFor='apartment'
+                                                                className='block text-sm font-medium text-gray-700 mb-1'
+                                                            >
+                                                                Квартира
+                                                            </label>
+                                                            <input
+                                                                type='text'
+                                                                id='apartment'
+                                                                name='apartment'
+                                                                value={
+                                                                    formData.apartment
+                                                                }
+                                                                onChange={
+                                                                    handleChange
+                                                                }
+                                                                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className='flex gap-4'>
-                                                    <button
-                                                        type='submit'
-                                                        className='px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition duration-200'
-                                                    >
-                                                        Save Changes
-                                                    </button>
+
+                                                <div className='flex justify-end space-x-4'>
                                                     <button
                                                         type='button'
-                                                        onClick={() => {
-                                                            setEditMode(false);
-                                                            setFormData({
-                                                                name: user.name,
-                                                                surname:
-                                                                    user.surname,
-                                                                email: user.email,
-                                                                phoneNumber:
-                                                                    user.phoneNumber,
-                                                                street: user.street,
-                                                                house: user.house,
-                                                                apartment:
-                                                                    user.apartment,
-                                                            });
-                                                        }}
-                                                        className='px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition duration-200'
+                                                        onClick={() =>
+                                                            setEditMode(false)
+                                                        }
+                                                        className='px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200'
                                                     >
-                                                        Cancel
+                                                        Отмена
+                                                    </button>
+                                                    <button
+                                                        type='submit'
+                                                        className='px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700'
+                                                    >
+                                                        Сохранить изменения
                                                     </button>
                                                 </div>
                                             </form>
                                         ) : (
                                             <div>
-                                                <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
-                                                    <div className='bg-gray-50 p-4 rounded-lg'>
-                                                        <div className='flex items-center mb-3'>
-                                                            <FaUser className='text-red-500 mr-2' />
-                                                            <h3 className='font-medium text-gray-800'>
-                                                                Account Info
-                                                            </h3>
-                                                        </div>
-                                                        <div className='space-y-2'>
-                                                            <p className='text-sm text-gray-600'>
-                                                                <span className='font-medium'>
-                                                                    Name:
-                                                                </span>{' '}
-                                                                {user.name}{' '}
-                                                                {user.surname}
-                                                            </p>
-                                                            <p className='text-sm text-gray-600'>
-                                                                <span className='font-medium'>
-                                                                    Email:
-                                                                </span>{' '}
-                                                                {user.email}
-                                                            </p>
-                                                            <p className='text-sm text-gray-600'>
-                                                                <span className='font-medium'>
-                                                                    Phone:
-                                                                </span>{' '}
-                                                                {
-                                                                    user.phoneNumber
-                                                                }
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className='bg-gray-50 p-4 rounded-lg'>
-                                                        <div className='flex items-center mb-3'>
-                                                            <FaMapMarkerAlt className='text-red-500 mr-2' />
-                                                            <h3 className='font-medium text-gray-800'>
-                                                                Delivery Address
-                                                            </h3>
-                                                        </div>
-                                                        <p className='text-sm text-gray-600'>
-                                                            {user.street}{' '}
-                                                            {user.house}
-                                                            {user.apartment
-                                                                ? `, Apt ${user.apartment}`
-                                                                : ''}
+                                                <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-6'>
+                                                    <div>
+                                                        <h3 className='text-sm font-medium text-gray-500'>
+                                                            Имя
+                                                        </h3>
+                                                        <p className='mt-1'>
+                                                            {user.name}
                                                         </p>
                                                     </div>
-                                                    <div className='bg-gray-50 p-4 rounded-lg'>
-                                                        <div className='flex items-center mb-3'>
-                                                            <FaHistory className='text-red-500 mr-2' />
-                                                            <h3 className='font-medium text-gray-800'>
-                                                                Account Status
-                                                            </h3>
-                                                        </div>
-                                                        <div className='space-y-2'>
-                                                            <p className='text-sm text-gray-600'>
-                                                                <span className='font-medium'>
-                                                                    Role:
-                                                                </span>{' '}
-                                                                {user.role}
-                                                            </p>
-                                                            <p className='text-sm text-gray-600'>
-                                                                <span className='font-medium'>
-                                                                    Rating:
-                                                                </span>{' '}
-                                                                {user.rating}
-                                                            </p>
-                                                        </div>
+                                                    <div>
+                                                        <h3 className='text-sm font-medium text-gray-500'>
+                                                            Фамилия
+                                                        </h3>
+                                                        <p className='mt-1'>
+                                                            {user.surname}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <h3 className='text-sm font-medium text-gray-500'>
+                                                            Email адрес
+                                                        </h3>
+                                                        <p className='mt-1'>
+                                                            {user.email}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <h3 className='text-sm font-medium text-gray-500'>
+                                                            Телефон
+                                                        </h3>
+                                                        <p className='mt-1'>
+                                                            {user.phoneNumber ||
+                                                                'Не указан'}
+                                                        </p>
                                                     </div>
                                                 </div>
 
-                                                <div className='mb-8'>
-                                                    <h3 className='text-lg font-medium text-gray-800 mb-4'>
-                                                        Account Management
+                                                <div>
+                                                    <h3 className='text-sm font-medium text-gray-500 mb-2'>
+                                                        Адрес доставки
                                                     </h3>
-                                                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                                                        <button className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition duration-200 flex items-center'>
-                                                            <FaLock className='text-red-500 mr-3' />
-                                                            <span>
-                                                                Change Password
-                                                            </span>
-                                                        </button>
-                                                        <button className='p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition duration-200 flex items-center'>
-                                                            <FaCreditCard className='text-red-500 mr-3' />
-                                                            <span>
-                                                                Manage Payment
-                                                                Methods
-                                                            </span>
-                                                        </button>
-                                                    </div>
+                                                    {user.street ? (
+                                                        <p>
+                                                            {user.street},{' '}
+                                                            {user.house}
+                                                            {user.apartment
+                                                                ? `, кв. ${user.apartment}`
+                                                                : ''}
+                                                        </p>
+                                                    ) : (
+                                                        <p className='text-gray-400'>
+                                                            Адрес не указан
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -472,22 +432,13 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                 <div className='bg-white rounded-lg shadow-sm'>
                                     <div className='p-6 border-b border-gray-200'>
                                         <h1 className='text-2xl font-bold text-gray-900'>
-                                            Order History
+                                            История заказов
                                         </h1>
                                     </div>
-
                                     <div className='p-6'>
-                                        <div className='text-center py-8'>
-                                            <p className='text-gray-500 mb-4'>
-                                                You haven't placed any orders
-                                                yet.
-                                            </p>
-                                            <Link
-                                                href='/menu'
-                                                className='bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition duration-200'
-                                            >
-                                                Browse Menu
-                                            </Link>
+                                        {/* Orders list will be added here */}
+                                        <div className='text-center py-8 text-gray-500'>
+                                            Загрузка истории заказов...
                                         </div>
                                     </div>
                                 </div>

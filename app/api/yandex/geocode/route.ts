@@ -1,75 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
-        // Get geocode parameter from URL
-        const searchParams = request.nextUrl.searchParams;
+        // Get the address from query parameters
+        const searchParams = req.nextUrl.searchParams;
         const address = searchParams.get('address');
 
-        console.log('Geocoding address:', address);
-
         if (!address) {
-            console.error('Missing address parameter');
             return NextResponse.json(
                 { error: 'Address parameter is required' },
                 { status: 400 }
             );
         }
 
-        // Use existing GEOSUGGEST_KEY from .env
-        const apiKey = process.env.GEOSUGGEST_KEY;
-        console.log('API key exists:', !!apiKey);
-
+        // Use a geocoding service API key from environment variables
+        const apiKey = process.env.YANDEX_API_KEY;
         if (!apiKey) {
-            console.error('GEOSUGGEST_KEY environment variable is not set');
+            console.error('Missing Yandex API key');
             return NextResponse.json(
-                { error: 'Server configuration error' },
+                { error: 'Geocoding service configuration error' },
                 { status: 500 }
             );
         }
 
-        // Make direct request to Yandex API with the proper format
-        // Yandex API requires the correct parameters and format
+        // Call the Yandex Geocoder API
         const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${encodeURIComponent(
             address
         )}`;
-
-        // Log the URL without the API key for debugging
-        console.log('Making request to Yandex API (redacted key)');
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
-        });
-
-        console.log('Yandex API response status:', response.status);
+        const response = await fetch(url);
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `Yandex API error: ${response.status} - ${errorText}`
-            );
-            return NextResponse.json(
-                {
-                    error: `API response error: ${response.status}`,
-                    details: errorText,
-                },
-                { status: response.status }
+            throw new Error(
+                `Geocoding API responded with status: ${response.status}`
             );
         }
 
         const data = await response.json();
-        return NextResponse.json(data);
-    } catch (error) {
-        console.error('Error in geocode API route:', error);
 
+        // Parse the Yandex Geocoder response to extract coordinates
+        const geoObject =
+            data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+        if (!geoObject) {
+            return NextResponse.json({ coordinates: null });
+        }
+
+        // Yandex returns coordinates as "longitude,latitude" so we need to reverse them
+        const pointStr = geoObject.Point?.pos;
+        if (!pointStr) {
+            return NextResponse.json({ coordinates: null });
+        }
+
+        // Split the point string and return as [latitude, longitude]
+        const [lng, lat] = pointStr.split(' ').map(parseFloat);
+
+        return NextResponse.json({
+            coordinates: [lat, lng],
+            address:
+                geoObject.metaDataProperty?.GeocoderMetaData?.text || address,
+        });
+    } catch (error) {
+        console.error('Error in geocoding:', error);
         return NextResponse.json(
-            {
-                error: 'Failed to geocode address',
-                details: error instanceof Error ? error.message : String(error),
-            },
+            { error: 'Failed to geocode address' },
             { status: 500 }
         );
     }

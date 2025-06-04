@@ -31,19 +31,19 @@ const AdminLoginPage = () => {
 
                     if (response.ok) {
                         // If refresh successful, redirect back to the admin page
-                        toast.success('Session refreshed successfully');
+                        toast.success('Сессия успешно обновлена');
                         router.push('/admin');
                     } else {
                         // If refresh failed, show error and stay on login page
                         toast.error(
                             data.error ||
-                                'Session expired. Please log in again.'
+                                'Сессия истекла. Пожалуйста, войдите снова.'
                         );
                     }
                 } catch (error) {
                     console.error('Refresh error:', error);
                     toast.error(
-                        'Failed to refresh session. Please log in again.'
+                        'Не удалось обновить сессию. Пожалуйста, войдите снова.'
                     );
                 } finally {
                     setIsLoading(false);
@@ -56,11 +56,11 @@ const AdminLoginPage = () => {
 
     const LoginSchema = Yup.object().shape({
         email: Yup.string()
-            .email('Invalid email format')
-            .required('Email is required'),
+            .email('Неверный формат email')
+            .required('Email обязателен'),
         password: Yup.string()
-            .required('Password is required')
-            .min(6, 'Password must be at least 6 characters'),
+            .required('Пароль обязателен')
+            .min(6, 'Пароль должен быть не менее 6 символов'),
     });
 
     const formik = useFormik({
@@ -86,22 +86,24 @@ const AdminLoginPage = () => {
 
                 if (response.ok) {
                     if (data.user && data.user.role === 'ADMIN') {
-                        toast.success('Admin login successful!');
+                        toast.success('Вход администратора успешен!');
                         router.push('/admin');
                     } else {
                         toast.error(
-                            'This account does not have admin privileges'
+                            'Данная учетная запись не имеет прав администратора'
                         );
                     }
                 } else {
                     toast.error(
                         data.error ||
-                            'Login failed. Please check your credentials.'
+                            'Ошибка входа. Пожалуйста, проверьте ваши учетные данные.'
                     );
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                toast.error('Login failed. Please check your credentials.');
+                toast.error(
+                    'Ошибка входа. Пожалуйста, проверьте ваши учетные данные.'
+                );
             } finally {
                 setIsLoading(false);
             }
@@ -113,10 +115,10 @@ const AdminLoginPage = () => {
             <div className='max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md'>
                 <div className='text-center'>
                     <h2 className='text-3xl font-bold text-gray-900'>
-                        Admin Login
+                        Вход для администратора
                     </h2>
                     <p className='mt-2 text-sm text-gray-600'>
-                        Sign in to access the admin dashboard
+                        Войдите для доступа к панели администратора
                     </p>
                 </div>
 
@@ -127,7 +129,7 @@ const AdminLoginPage = () => {
                                 htmlFor='email'
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                Email Address
+                                Email адрес
                             </label>
                             <div className='mt-1 relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -139,7 +141,7 @@ const AdminLoginPage = () => {
                                     autoComplete='email'
                                     required
                                     className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                                    placeholder='Admin email'
+                                    placeholder='Email администратора'
                                     {...formik.getFieldProps('email')}
                                 />
                             </div>
@@ -155,7 +157,7 @@ const AdminLoginPage = () => {
                                 htmlFor='password'
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                Password
+                                Пароль
                             </label>
                             <div className='mt-1 relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -167,7 +169,7 @@ const AdminLoginPage = () => {
                                     autoComplete='current-password'
                                     required
                                     className='appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500'
-                                    placeholder='Admin password'
+                                    placeholder='Пароль администратора'
                                     {...formik.getFieldProps('password')}
                                 />
                                 <div className='absolute inset-y-0 right-0 pr-3 flex items-center'>
@@ -201,7 +203,7 @@ const AdminLoginPage = () => {
                             disabled={isLoading}
                             className='w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed'
                         >
-                            {isLoading ? 'Signing in...' : 'Sign in as Admin'}
+                            {isLoading ? 'Вход...' : 'Войти как администратор'}
                         </button>
                     </div>
                 </form>

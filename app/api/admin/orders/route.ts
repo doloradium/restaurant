@@ -1,25 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
 import { prisma } from '@/lib/prisma';
 
 // GET handler to fetch all orders
 export async function GET(req: NextRequest) {
     try {
-        console.log('Fetching all orders');
+        // Get status filter from query params
+        const searchParams = req.nextUrl.searchParams;
+        const status = searchParams.get('status');
 
-        // Get all orders with related items
+        // Build the query
+        const whereClause = status ? { status } : {};
+
+        // Fetch orders with filter
         const orders = await prisma.order.findMany({
+            where: whereClause,
             include: {
-                orderItems: {
-                    include: {
-                        item: true,
-                    },
-                },
                 user: {
                     select: {
                         id: true,
-                        email: true,
                         name: true,
+                        surname: true,
+                        email: true,
+                        phoneNumber: true,
+                    },
+                },
+                orderItems: {
+                    include: {
+                        item: true,
                     },
                 },
             },
@@ -28,7 +35,6 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        console.log(`Found ${orders.length} orders`);
         return NextResponse.json(orders);
     } catch (error) {
         console.error('Error fetching orders:', error);

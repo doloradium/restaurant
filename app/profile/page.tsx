@@ -58,7 +58,7 @@ export default async function ProfilePage() {
     }
 
     if (!user) {
-        throw new Error('Unauthorized');
+        throw new Error('Не авторизован');
     }
 
     return <ProfileClient user={user} />;

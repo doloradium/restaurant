@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(
-    request: Request,
-    { params }: { params: { id: string } }
-) {
+interface Params {
+    id: string;
+}
+
+export async function GET(req: Request, { params }: { params: Params }) {
     try {
         const { id } = params;
         const orderId = parseInt(id);
@@ -272,6 +273,67 @@ export async function DELETE(
         console.error('Error deleting order:', error);
         return NextResponse.json(
             { error: 'Failed to delete order' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Params }) {
+    try {
+        const { id } = params;
+        const orderId = parseInt(id);
+
+        // Validate order exists
+        const order = await prisma.order.findUnique({
+            where: { id: orderId },
+        });
+
+        if (!order) {
+            return NextResponse.json(
+                { error: 'Order not found' },
+                { status: 404 }
+            );
+        }
+
+        // Get update data from request body
+        const data = await req.json();
+
+        // Update order with the provided data
+        const updatedOrder = await prisma.order.update({
+            where: { id: orderId },
+            data: {
+                // Only allow updating specific fields
+                courierId:
+                    data.courierId !== undefined
+                        ? data.courierId === 0
+                            ? null
+                            : data.courierId
+                        : undefined,
+                status: data.status !== undefined ? data.status : undefined,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        surname: true,
+                        email: true,
+                        phoneNumber: true,
+                    },
+                },
+                orderItems: {
+                    include: {
+                        item: true,
+                    },
+                },
+            },
+        });
+
+        return NextResponse.json(updatedOrder);
+    } catch (error) {
+        console.error('Error updating order:', error);
+        return NextResponse.json(
+            { error: 'Failed to update order' },
             { status: 500 }
         );
     }

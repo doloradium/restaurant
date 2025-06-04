@@ -14,8 +14,8 @@ import { Toaster } from 'react-hot-toast';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-    title: 'Restaurant',
-    description: 'Restaurant website',
+    title: 'Ресторан',
+    description: 'Сайт ресторана',
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang='en'>
+        <html lang='ru'>
             <body className={inter.className}>
                 <AuthProvider>
                     <CookAuthProvider>

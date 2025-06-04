@@ -15,12 +15,17 @@ import {
     Toolbar,
     ToolbarProps,
 } from 'react-admin';
+import { Typography } from '@mui/material';
 
 export const CategoryList = () => (
     <List>
         <Datagrid rowClick='edit' bulkActionButtons={<BulkDeleteButton />}>
-            <TextField source='id' />
-            <TextField source='name' />
+            <TextField source='id' label='ID' />
+            <TextField source='name' label='Название' />
+            <TextField
+                source='originalName'
+                label='Системное название (англ.)'
+            />
         </Datagrid>
     </List>
 );
@@ -28,7 +33,7 @@ export const CategoryList = () => (
 // Simple edit toolbar
 const EditToolbar = (props: ToolbarProps) => (
     <Toolbar {...props}>
-        <SaveButton />
+        <SaveButton label='Сохранить' />
     </Toolbar>
 );
 
@@ -37,7 +42,19 @@ export const CategoryEdit = () => {
     return (
         <Edit>
             <SimpleForm toolbar={<EditToolbar />}>
-                <TextInput source='name' fullWidth />
+                <TextInput source='name' label='Название (рус.)' fullWidth />
+                <TextInput
+                    source='originalName'
+                    label='Системное название (англ.)'
+                    fullWidth
+                />
+                <Typography
+                    variant='body2'
+                    sx={{ mb: 2, color: 'text.secondary' }}
+                >
+                    * Системное название должно быть на английском языке и
+                    используется для API запросов и URL ссылок.
+                </Typography>
             </SimpleForm>
         </Edit>
     );
@@ -49,14 +66,26 @@ export const CategoryCreate = () => {
     const notify = useNotify();
 
     const onSuccess = () => {
-        notify('Category created successfully');
+        notify('Категория успешно создана');
         redirect('list', 'categories');
     };
 
     return (
         <Create mutationOptions={{ onSuccess }}>
             <SimpleForm toolbar={<EditToolbar />}>
-                <TextInput source='name' required />
+                <TextInput source='name' label='Название (рус.)' required />
+                <TextInput
+                    source='originalName'
+                    label='Системное название (англ.)'
+                    required
+                />
+                <Typography
+                    variant='body2'
+                    sx={{ mb: 2, color: 'text.secondary' }}
+                >
+                    * Системное название должно быть на английском языке и
+                    используется для API запросов и URL ссылок.
+                </Typography>
             </SimpleForm>
         </Create>
     );

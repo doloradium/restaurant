@@ -9,6 +9,7 @@ import MenuItem from '@/components/menu/MenuItem';
 interface Category {
     id: string;
     name: string;
+    originalName?: string; // Original English name for API calls
 }
 
 interface MenuItemType {
@@ -36,57 +37,98 @@ export default function MenuClient({
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
-    const [filteredItems, setFilteredItems] = useState(items);
+    const [filteredItems, setFilteredItems] = useState<MenuItemType[]>([]);
     const [activeCategory, setActiveCategory] = useState(
         selectedCategory || 'all'
     );
-    const [priceRange, setPriceRange] = useState<[number, number]>([0, 50]);
-    const [dietaryFilters, setDietaryFilters] = useState({
-        isVegetarian: false,
-        isGlutenFree: false,
-        isSpicy: false,
-    });
+
+    // Calculate the maximum price from items for the price range
+    const maxItemPrice = Math.max(
+        ...items.map((item) => Number(item.price) || 0),
+        100
+    );
+
+    // Initialize priceRange state with proper defaults
+    const [priceRange, setPriceRange] = useState<[number, number]>([
+        0,
+        maxItemPrice || 1000,
+    ]);
+
+    // Set filtered items when items change
+    useEffect(() => {
+        setFilteredItems(items);
+    }, [items]);
+
+    // Add useEffect to update price range when items change
+    useEffect(() => {
+        if (items.length > 0) {
+            const newMax = Math.max(
+                ...items.map((item) => Number(item.price) || 0),
+                100
+            );
+            setPriceRange([0, newMax]);
+        }
+    }, [items]);
+
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
     // Initialize filters from URL parameters
     useEffect(() => {
         const category = searchParams.get('category');
+
         if (category) {
-            setActiveCategory(category.toLowerCase());
+            // Check if the category is 'all' or a specific ID
+            if (category === 'all') {
+                setActiveCategory('all');
+            } else {
+                // Try to find a category with matching ID by converting both to strings
+                const matchingCategory = categories.find(
+                    (cat) => String(cat.id) === String(category)
+                );
+
+                if (matchingCategory) {
+                    setActiveCategory(String(category)); // Use the ID directly
+                } else {
+                    setActiveCategory('all');
+                }
+            }
+        } else if (selectedCategory) {
+            // If no category in searchParams but selectedCategory is provided
+            setActiveCategory(selectedCategory);
         }
-    }, [searchParams]);
+    }, [searchParams, categories, selectedCategory]);
 
     // Apply filters
     useEffect(() => {
+        // If no items yet, don't try to filter
+        if (items.length === 0) {
+            return;
+        }
+
         let result = [...items];
 
-        // Filter by category
+        // Filter by category ID
         if (activeCategory && activeCategory !== 'all') {
-            result = result.filter(
-                (item) =>
-                    (item.category?.name || '').toLowerCase() ===
-                        activeCategory ||
-                    (
-                        (item.category as unknown as string) || ''
-                    ).toLowerCase() === activeCategory
-            );
+            result = result.filter((item) => {
+                // Convert to strings before comparison to handle potential type mismatches
+                const itemCategoryId = String(item.categoryId);
+                const activeCategoryId = String(activeCategory);
+                const categoryId = item.category
+                    ? String(item.category.id)
+                    : '';
+
+                return (
+                    itemCategoryId === activeCategoryId ||
+                    categoryId === activeCategoryId
+                );
+            });
         }
 
-        // Filter by price range
-        result = result.filter(
-            (item) => item.price >= priceRange[0] && item.price <= priceRange[1]
-        );
-
-        // Filter by dietary preferences
-        if (dietaryFilters.isVegetarian) {
-            result = result.filter((item) => item.isVegetarian);
-        }
-        if (dietaryFilters.isGlutenFree) {
-            result = result.filter((item) => item.isGlutenFree);
-        }
-        if (dietaryFilters.isSpicy) {
-            result = result.filter((item) => item.isSpicy);
-        }
+        // Filter by price range - make sure both item.price and priceRange values are compared as numbers
+        result = result.filter((item) => {
+            const itemPrice = Number(item.price);
+            return itemPrice >= priceRange[0] && itemPrice <= priceRange[1];
+        });
 
         // Filter by search query
         if (searchQuery.trim() !== '') {
@@ -103,15 +145,16 @@ export default function MenuClient({
         }
 
         setFilteredItems(result);
-    }, [activeCategory, priceRange, dietaryFilters, searchQuery, items]);
+    }, [activeCategory, priceRange, searchQuery, items]);
 
-    const handleCategoryChange = (category: string) => {
-        setActiveCategory(category);
+    const handleCategoryChange = (categoryId: string) => {
+        setActiveCategory(categoryId);
+
         // Update URL
-        if (category === 'all') {
+        if (categoryId === 'all') {
             router.push('/menu');
         } else {
-            router.push(`/menu?category=${category.toLowerCase()}`);
+            router.push(`/menu?category=${categoryId}`);
         }
     };
 
@@ -124,21 +167,9 @@ export default function MenuClient({
         }
     };
 
-    const handleDietaryFilterChange = (filter: keyof typeof dietaryFilters) => {
-        setDietaryFilters({
-            ...dietaryFilters,
-            [filter]: !dietaryFilters[filter],
-        });
-    };
-
     const resetFilters = () => {
         setActiveCategory('all');
-        setPriceRange([0, 50]);
-        setDietaryFilters({
-            isVegetarian: false,
-            isGlutenFree: false,
-            isSpicy: false,
-        });
+        setPriceRange([0, maxItemPrice]);
         setSearchQuery('');
         router.push('/menu');
     };
@@ -159,8 +190,8 @@ export default function MenuClient({
 
             <div className='container mx-auto px-4 py-8'>
                 {/* Search and Filter Bar */}
-                <div className='mb-8 flex flex-col md:flex-row gap-4 items-center justify-between'>
-                    <div className='relative w-full md:w-1/3'>
+                <div className='mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between'>
+                    <div className='relative w-full sm:w-1/2 md:w-1/3'>
                         <input
                             type='text'
                             placeholder='Поиск в меню...'
@@ -172,15 +203,15 @@ export default function MenuClient({
                     </div>
 
                     <button
-                        className='md:hidden flex items-center gap-2 bg-white px-4 py-2 rounded-md border border-gray-300 text-gray-700'
+                        className='lg:hidden flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-3 rounded-md shadow-md w-full sm:w-auto'
                         onClick={() => setIsMobileFilterOpen(true)}
                     >
-                        <FaFilter /> Фильтры
+                        <FaFilter /> Фильтры и категории
                     </button>
                 </div>
 
                 <div className='flex flex-col lg:flex-row gap-8'>
-                    {/* Filters - Desktop */}
+                    {/* Filters - Desktop (visible on large screens) */}
                     <div className='hidden lg:block w-64 bg-white p-6 rounded-lg shadow-sm h-fit sticky top-4'>
                         <div className='mb-6'>
                             <div className='flex justify-between items-center mb-4'>
@@ -200,36 +231,37 @@ export default function MenuClient({
                                     Категории
                                 </h4>
                                 <div className='space-y-2'>
-                                    <div
+                                    <button
                                         key='all'
-                                        className={`cursor-pointer py-1 px-2 rounded ${
-                                            activeCategory === 'all'
-                                                ? 'bg-red-100 text-red-700'
-                                                : 'hover:bg-gray-100'
-                                        }`}
                                         onClick={() =>
                                             handleCategoryChange('all')
                                         }
+                                        className={`px-3 py-1 rounded text-sm ${
+                                            activeCategory === 'all'
+                                                ? 'bg-red-600 text-white'
+                                                : 'bg-gray-200 text-gray-800'
+                                        }`}
                                     >
                                         Все
-                                    </div>
+                                    </button>
+
                                     {categories.map((category) => (
-                                        <div
+                                        <button
                                             key={category.id}
-                                            className={`cursor-pointer py-1 px-2 rounded ${
-                                                activeCategory ===
-                                                category.name.toLowerCase()
-                                                    ? 'bg-red-100 text-red-700'
-                                                    : 'hover:bg-gray-100'
-                                            }`}
                                             onClick={() =>
                                                 handleCategoryChange(
-                                                    category.name.toLowerCase()
+                                                    String(category.id)
                                                 )
                                             }
+                                            className={`px-3 py-1 rounded text-sm ${
+                                                String(activeCategory) ===
+                                                String(category.id)
+                                                    ? 'bg-red-600 text-white'
+                                                    : 'bg-gray-200 text-gray-800'
+                                            }`}
                                         >
                                             {category.name}
-                                        </div>
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -241,10 +273,10 @@ export default function MenuClient({
                                 <div className='space-y-2'>
                                     <div className='flex items-center justify-between'>
                                         <span className='text-sm text-gray-600'>
-                                            От: ${priceRange[0]}
+                                            От: ₽{Math.floor(priceRange[0])}
                                         </span>
                                         <span className='text-sm text-gray-600'>
-                                            До: ${priceRange[1]}
+                                            До: ₽{Math.ceil(priceRange[1])}
                                         </span>
                                     </div>
                                     <div className='flex gap-2'>
@@ -252,8 +284,8 @@ export default function MenuClient({
                                             type='range'
                                             name='min'
                                             min='0'
-                                            max='50'
-                                            step='1'
+                                            max={maxItemPrice}
+                                            step={Math.ceil(maxItemPrice / 50)}
                                             value={priceRange[0]}
                                             onChange={handlePriceRangeChange}
                                             className='w-full'
@@ -262,8 +294,8 @@ export default function MenuClient({
                                             type='range'
                                             name='max'
                                             min='0'
-                                            max='50'
-                                            step='1'
+                                            max={maxItemPrice}
+                                            step={Math.ceil(maxItemPrice / 50)}
                                             value={priceRange[1]}
                                             onChange={handlePriceRangeChange}
                                             className='w-full'
@@ -271,64 +303,13 @@ export default function MenuClient({
                                     </div>
                                 </div>
                             </div>
-
-                            <div>
-                                <h4 className='font-medium text-gray-700 mb-2'>
-                                    Диетические опции
-                                </h4>
-                                <div className='space-y-2'>
-                                    <label className='flex items-center gap-2 cursor-pointer'>
-                                        <input
-                                            type='checkbox'
-                                            checked={
-                                                dietaryFilters.isVegetarian
-                                            }
-                                            onChange={() =>
-                                                handleDietaryFilterChange(
-                                                    'isVegetarian'
-                                                )
-                                            }
-                                            className='rounded text-red-600 focus:ring-red-500'
-                                        />
-                                        <span>Вегетарианское</span>
-                                    </label>
-                                    <label className='flex items-center gap-2 cursor-pointer'>
-                                        <input
-                                            type='checkbox'
-                                            checked={
-                                                dietaryFilters.isGlutenFree
-                                            }
-                                            onChange={() =>
-                                                handleDietaryFilterChange(
-                                                    'isGlutenFree'
-                                                )
-                                            }
-                                            className='rounded text-red-600 focus:ring-red-500'
-                                        />
-                                        <span>Без глютена</span>
-                                    </label>
-                                    <label className='flex items-center gap-2 cursor-pointer'>
-                                        <input
-                                            type='checkbox'
-                                            checked={dietaryFilters.isSpicy}
-                                            onChange={() =>
-                                                handleDietaryFilterChange(
-                                                    'isSpicy'
-                                                )
-                                            }
-                                            className='rounded text-red-600 focus:ring-red-500'
-                                        />
-                                        <span>Острое</span>
-                                    </label>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
-                    {/* Mobile Filters */}
+                    {/* Mobile Filters (visible on small to medium screens) */}
                     {isMobileFilterOpen && (
-                        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end'>
-                            <div className='bg-white w-3/4 max-w-sm h-full overflow-y-auto p-6'>
+                        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end overflow-hidden'>
+                            <div className='bg-white w-full max-w-sm h-full overflow-y-auto p-6 animate-slide-in'>
                                 <div className='flex justify-between items-center mb-6'>
                                     <h3 className='font-bold text-xl'>
                                         Фильтры
@@ -375,14 +356,14 @@ export default function MenuClient({
                                             <div
                                                 key={`${category.id}-mobile`}
                                                 className={`cursor-pointer py-2 px-3 rounded ${
-                                                    activeCategory ===
-                                                    category.name.toLowerCase()
+                                                    String(activeCategory) ===
+                                                    String(category.id)
                                                         ? 'bg-red-100 text-red-700'
                                                         : 'hover:bg-gray-100'
                                                 }`}
                                                 onClick={() => {
                                                     handleCategoryChange(
-                                                        category.name.toLowerCase()
+                                                        String(category.id)
                                                     );
                                                     setIsMobileFilterOpen(
                                                         false
@@ -395,8 +376,52 @@ export default function MenuClient({
                                     </div>
                                 </div>
 
-                                {/* Mobile price and dietary filters - same as desktop */}
-                                {/* ... */}
+                                {/* Mobile price filter */}
+                                <div className='mb-6'>
+                                    <h4 className='font-medium text-gray-700 mb-2'>
+                                        Цена
+                                    </h4>
+                                    <div className='space-y-2'>
+                                        <div className='flex items-center justify-between'>
+                                            <span className='text-sm text-gray-600'>
+                                                От: ₽{Math.floor(priceRange[0])}
+                                            </span>
+                                            <span className='text-sm text-gray-600'>
+                                                До: ₽{Math.ceil(priceRange[1])}
+                                            </span>
+                                        </div>
+                                        <div className='flex gap-2'>
+                                            <input
+                                                type='range'
+                                                name='min'
+                                                min='0'
+                                                max={maxItemPrice}
+                                                step={Math.ceil(
+                                                    maxItemPrice / 50
+                                                )}
+                                                value={priceRange[0]}
+                                                onChange={
+                                                    handlePriceRangeChange
+                                                }
+                                                className='w-full'
+                                            />
+                                            <input
+                                                type='range'
+                                                name='max'
+                                                min='0'
+                                                max={maxItemPrice}
+                                                step={Math.ceil(
+                                                    maxItemPrice / 50
+                                                )}
+                                                value={priceRange[1]}
+                                                onChange={
+                                                    handlePriceRangeChange
+                                                }
+                                                className='w-full'
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -409,8 +434,8 @@ export default function MenuClient({
                                     ? 'Все блюда'
                                     : categories.find(
                                           (c) =>
-                                              c.name.toLowerCase() ===
-                                              activeCategory
+                                              String(c.id) ===
+                                              String(activeCategory)
                                       )?.name || 'Блюда'}
                             </h2>
                             <p className='text-gray-500'>

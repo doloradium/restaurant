@@ -53,8 +53,57 @@ const CheckoutPage = () => {
 
             setIsProcessing(true);
             try {
-                // Simulate order creation
-                await new Promise((resolve) => setTimeout(resolve, 1500));
+                // Get current user ID
+                const userResponse = await fetch('/api/auth/me');
+                const userData = await userResponse.json();
+
+                if (!userData.user) {
+                    toast.error('You must be logged in to place an order');
+                    router.push('/login');
+                    return;
+                }
+
+                // Update user address if needed
+                if (deliveryAddress) {
+                    await fetch('/api/users/address', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: userData.user.id,
+                            street: deliveryAddress.street,
+                            house: deliveryAddress.houseNumber,
+                            apartment: deliveryAddress.apartment,
+                        }),
+                    });
+                }
+
+                // Create order in database
+                const orderResponse = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: userData.user.id,
+                        items: cart.map((item) => ({
+                            itemId: item.id,
+                            quantity: item.quantity,
+                        })),
+                        paymentType: 'CARD', // Could make this configurable
+                        status: 'PENDING',
+                    }),
+                });
+
+                if (!orderResponse.ok) {
+                    const errorData = await orderResponse.json();
+                    throw new Error(
+                        errorData.error || 'Failed to create order'
+                    );
+                }
+
+                // Get the created order
+                const orderData = await orderResponse.json();
+                console.log('Order created:', orderData);
 
                 // Success
                 clearCart();
@@ -62,7 +111,7 @@ const CheckoutPage = () => {
                 toast.success('Order placed successfully!');
             } catch (error) {
                 console.error('Error processing order:', error);
-                toast.error('Failed to process order');
+                toast.error('Failed to process order. Please try again.');
             } finally {
                 setIsProcessing(false);
             }

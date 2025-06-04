@@ -66,23 +66,13 @@ export default function HomeClient({
                         {categories.map((category) => (
                             <Link
                                 key={category.id}
-                                href={`/menu?category=${(
-                                    category.name || ''
-                                ).toLowerCase()}`}
+                                href={`/menu?category=${category.id}`}
+                                className='group bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2'
                             >
-                                <div className='group bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:-translate-y-2'>
-                                    <div className='h-48 relative'>
-                                        <div className='h-full w-full bg-gray-300 flex items-center justify-center'>
-                                            <span className='text-sm text-gray-500'>
-                                                Изображение категории
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className='p-4 text-center'>
-                                        <h3 className='text-xl font-bold text-gray-800 group-hover:text-red-600 transition-colors duration-200'>
-                                            {category.name}
-                                        </h3>
-                                    </div>
+                                <div className='p-4 text-center'>
+                                    <h3 className='text-xl font-bold text-gray-800 group-hover:text-red-600 transition-colors duration-200'>
+                                        {category.name}
+                                    </h3>
                                 </div>
                             </Link>
                         ))}

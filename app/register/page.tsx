@@ -14,24 +14,26 @@ const RegisterPage = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const RegisterSchema = Yup.object().shape({
-        name: Yup.string().required('Name is required'),
+        name: Yup.string().required('Имя обязательно'),
+        surname: Yup.string().required('Фамилия обязательна'),
         email: Yup.string()
-            .email('Invalid email format')
-            .required('Email is required'),
+            .email('Неверный формат email')
+            .required('Email обязателен'),
         password: Yup.string()
-            .required('Password is required')
-            .min(6, 'Password must be at least 6 characters'),
+            .required('Пароль обязателен')
+            .min(6, 'Пароль должен быть не менее 6 символов'),
         confirmPassword: Yup.string()
-            .oneOf([Yup.ref('password')], 'Passwords must match')
-            .required('Confirm password is required'),
+            .oneOf([Yup.ref('password')], 'Пароли должны совпадать')
+            .required('Подтверждение пароля обязательно'),
         terms: Yup.boolean()
-            .oneOf([true], 'You must accept the terms and conditions')
-            .required('You must accept the terms and conditions'),
+            .oneOf([true], 'Вы должны принять условия использования')
+            .required('Вы должны принять условия использования'),
     });
 
     const formik = useFormik({
         initialValues: {
             name: '',
+            surname: '',
             email: '',
             password: '',
             confirmPassword: '',
@@ -47,6 +49,7 @@ const RegisterPage = () => {
                     credentials: 'include',
                     body: JSON.stringify({
                         name: values.name,
+                        surname: values.surname,
                         email: values.email,
                         password: values.password,
                     }),
@@ -55,16 +58,19 @@ const RegisterPage = () => {
                 const data = await response.json();
 
                 if (response.ok) {
-                    toast.success('Registration successful!');
+                    toast.success('Регистрация успешна!');
                     router.push('/login');
                 } else {
                     toast.error(
-                        data.error || 'Registration failed. Please try again.'
+                        data.error ||
+                            'Ошибка регистрации. Пожалуйста, попробуйте снова.'
                     );
                 }
             } catch (error) {
                 console.error('Registration error:', error);
-                toast.error('Registration failed. Please try again.');
+                toast.error(
+                    'Ошибка регистрации. Пожалуйста, попробуйте снова.'
+                );
             } finally {
                 setIsLoading(false);
             }
@@ -76,10 +82,10 @@ const RegisterPage = () => {
             <div className='max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md'>
                 <div className='text-center'>
                     <h2 className='text-3xl font-bold text-gray-900'>
-                        Create Account
+                        Создать аккаунт
                     </h2>
                     <p className='mt-2 text-sm text-gray-600'>
-                        Join us to start ordering delicious food
+                        Присоединяйтесь к нам, чтобы заказывать вкусную еду
                     </p>
                 </div>
 
@@ -90,7 +96,7 @@ const RegisterPage = () => {
                                 htmlFor='name'
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                Full Name
+                                Имя
                             </label>
                             <div className='mt-1 relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -99,10 +105,10 @@ const RegisterPage = () => {
                                 <input
                                     id='name'
                                     type='text'
-                                    autoComplete='name'
+                                    autoComplete='given-name'
                                     required
                                     className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                                    placeholder='Enter your full name'
+                                    placeholder='Введите ваше имя'
                                     {...formik.getFieldProps('name')}
                                 />
                             </div>
@@ -115,10 +121,39 @@ const RegisterPage = () => {
 
                         <div>
                             <label
+                                htmlFor='surname'
+                                className='block text-sm font-medium text-gray-700'
+                            >
+                                Фамилия
+                            </label>
+                            <div className='mt-1 relative'>
+                                <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                                    <FaUser className='text-gray-400' />
+                                </div>
+                                <input
+                                    id='surname'
+                                    type='text'
+                                    autoComplete='family-name'
+                                    required
+                                    className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
+                                    placeholder='Введите вашу фамилию'
+                                    {...formik.getFieldProps('surname')}
+                                />
+                            </div>
+                            {formik.touched.surname &&
+                                formik.errors.surname && (
+                                    <p className='mt-1 text-sm text-red-600'>
+                                        {formik.errors.surname}
+                                    </p>
+                                )}
+                        </div>
+
+                        <div>
+                            <label
                                 htmlFor='email'
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                Email Address
+                                Email адрес
                             </label>
                             <div className='mt-1 relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -130,7 +165,7 @@ const RegisterPage = () => {
                                     autoComplete='email'
                                     required
                                     className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                                    placeholder='Enter your email'
+                                    placeholder='Введите ваш email'
                                     {...formik.getFieldProps('email')}
                                 />
                             </div>
@@ -146,7 +181,7 @@ const RegisterPage = () => {
                                 htmlFor='password'
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                Password
+                                Пароль
                             </label>
                             <div className='mt-1 relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -158,7 +193,7 @@ const RegisterPage = () => {
                                     autoComplete='new-password'
                                     required
                                     className='appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                                    placeholder='Enter your password'
+                                    placeholder='Введите ваш пароль'
                                     {...formik.getFieldProps('password')}
                                 />
                                 <div className='absolute inset-y-0 right-0 pr-3 flex items-center'>
@@ -190,7 +225,7 @@ const RegisterPage = () => {
                                 htmlFor='confirmPassword'
                                 className='block text-sm font-medium text-gray-700'
                             >
-                                Confirm Password
+                                Подтвердите пароль
                             </label>
                             <div className='mt-1 relative'>
                                 <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
@@ -202,7 +237,7 @@ const RegisterPage = () => {
                                     autoComplete='new-password'
                                     required
                                     className='appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-red-500 focus:border-red-500'
-                                    placeholder='Confirm your password'
+                                    placeholder='Подтвердите ваш пароль'
                                     {...formik.getFieldProps('confirmPassword')}
                                 />
                             </div>
@@ -223,14 +258,14 @@ const RegisterPage = () => {
                             />
                             <label
                                 htmlFor='terms'
-                                className='ml-2 block text-sm text-gray-900'
+                                className='ml-2 block text-sm text-gray-700'
                             >
-                                I agree to the{' '}
+                                Я принимаю{' '}
                                 <Link
                                     href='/terms'
-                                    className='font-medium text-red-600 hover:text-red-500'
+                                    className='text-red-600 hover:text-red-500'
                                 >
-                                    Terms and Conditions
+                                    условия использования
                                 </Link>
                             </label>
                         </div>
@@ -248,20 +283,20 @@ const RegisterPage = () => {
                             className='w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                             {isLoading
-                                ? 'Creating account...'
-                                : 'Create account'}
+                                ? 'Регистрация...'
+                                : 'Зарегистрироваться'}
                         </button>
                     </div>
                 </form>
 
                 <div className='mt-6 text-center'>
                     <p className='text-sm text-gray-600'>
-                        Already have an account?{' '}
+                        Уже есть аккаунт?{' '}
                         <Link
                             href='/login'
                             className='font-medium text-red-600 hover:text-red-500'
                         >
-                            Sign in
+                            Войти
                         </Link>
                     </p>
                 </div>

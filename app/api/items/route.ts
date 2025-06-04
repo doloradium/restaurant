@@ -5,7 +5,9 @@ import { Prisma } from '@prisma/client';
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url!);
-        const limit = parseInt(searchParams.get('limit') || '20', 10);
+        // Increase default limit to 100 and allow up to 1000 items
+        const requestedLimit = parseInt(searchParams.get('limit') || '100', 10);
+        const limit = Math.min(requestedLimit, 1000); // Cap at 1000 for safety
         const offset = parseInt(searchParams.get('offset') || '0', 10);
 
         // First get the items with standard relations

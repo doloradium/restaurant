@@ -1,58 +1,72 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import MenuClient from './MenuClient';
 
-async function getCategories() {
-    try {
-        const baseUrl =
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002';
-        const res = await fetch(`${baseUrl}/api/categories`, {
-            cache: 'no-store',
-        });
+export default function MenuPage() {
+    const searchParams = useSearchParams();
+    const [categories, setCategories] = useState([]);
+    const [items, setItems] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-        if (!res.ok) {
-            throw new Error(`Failed to fetch categories: ${res.statusText}`);
-        }
+    // Get the category from searchParams
+    const category = searchParams.get('category') || '';
 
-        return res.json();
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-        return []; // Return empty array as fallback
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                // Make sure we have a proper base URL
+                const baseUrl =
+                    process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+                // Fetch categories and items in parallel
+                const [categoriesRes, itemsRes] = await Promise.all([
+                    fetch(`${baseUrl}/api/categories`, { cache: 'no-store' }),
+                    fetch(`${baseUrl}/api/items?limit=1000`, {
+                        cache: 'no-store',
+                    }),
+                ]);
+
+                if (!categoriesRes.ok) {
+                    throw new Error('Failed to fetch categories');
+                }
+
+                if (!itemsRes.ok) {
+                    throw new Error('Failed to fetch items');
+                }
+
+                const [categoriesData, itemsData] = await Promise.all([
+                    categoriesRes.json(),
+                    itemsRes.json(),
+                ]);
+
+                setCategories(categoriesData);
+                setItems(itemsData);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className='flex justify-center items-center min-h-screen'>
+                <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600'></div>
+            </div>
+        );
     }
-}
-
-async function getItems() {
-    try {
-        const baseUrl =
-            process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3002';
-        const res = await fetch(`${baseUrl}/api/items`, {
-            cache: 'no-store',
-        });
-
-        if (!res.ok) {
-            throw new Error(`Failed to fetch items: ${res.statusText}`);
-        }
-
-        return res.json();
-    } catch (error) {
-        console.error('Error fetching menu items:', error);
-        return []; // Return empty array as fallback
-    }
-}
-
-export default async function MenuPage({
-    searchParams,
-}: {
-    searchParams: { category?: string };
-}) {
-    const [categories, items] = await Promise.all([
-        getCategories(),
-        getItems(),
-    ]);
 
     return (
         <MenuClient
             items={items}
             categories={categories}
-            selectedCategory={searchParams.category || ''}
+            selectedCategory={category}
         />
     );
 }

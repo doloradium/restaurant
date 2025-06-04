@@ -17,7 +17,9 @@ const Footer = () => {
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8'>
                     {/* Company Info */}
                     <div>
-                        <h3 className='text-xl font-bold mb-4'>Mosaic Sushi</h3>
+                        <h3 className='text-xl font-bold mb-4'>
+                            Ресторан "База"
+                        </h3>
                         <p className='text-gray-400 mb-4'>
                             Насладитесь лучшей японской кухней — наши суши
                             готовятся из свежих ингредиентов по аутентичным
@@ -156,7 +158,8 @@ const Footer = () => {
                 {/* Copyright */}
                 <div className='pt-6 border-t border-gray-800 text-center text-gray-400 text-sm'>
                     <p>
-                        &copy; {currentYear} Mosaic Sushi. Все права защищены.
+                        &copy; {currentYear} Ресторан "База". Все права
+                        защищены.
                     </p>
                 </div>
             </div>
