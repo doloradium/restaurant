@@ -13,14 +13,26 @@ model User {
   surname      String
   email        String    @unique
   phoneNumber  String?
-  street       String?
-  house        String?
-  apartment    String?
   passwordHash String
   role         String    @default("USER")
   rating       Float?    @default(0.0)
   orders       Order[]
   reviews      Review[]
+  addresses    Address[]
+}
+
+model Address {
+  id         Int     @id @default(autoincrement())
+  userId     Int
+  city       String
+  street     String
+  houseNumber String
+  apartment  String?
+  entrance   String?
+  floor      String?
+  intercom   String?
+  user       User    @relation(fields: [userId], references: [id])
+  orders     Order[]
 }
 
 model Category {
@@ -51,14 +63,15 @@ model Image {
 model Order {
   id           Int         @id @default(autoincrement())
   userId       Int
+  addressId    Int
   courierId    Int?
   paymentType  String
   isPaid       Boolean     @default(false)
   isCompleted  Boolean     @default(false)
-  dateOrdered  DateTime    @default(now())
-  dateArrived  DateTime?
+  deliveryTime DateTime
   status       String
   user         User        @relation(fields: [userId], references: [id])
+  address      Address     @relation(fields: [addressId], references: [id])
   orderItems   OrderItem[]
 }
 
@@ -77,7 +90,7 @@ model Review {
   userId    Int
   createdAt DateTime @default(now())
   text      String
-  rating    Int      @default(5)
+  rating    Int      @default(0)
   item      Item     @relation(fields: [itemId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 }

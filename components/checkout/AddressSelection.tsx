@@ -19,6 +19,18 @@ declare global {
     }
 }
 
+// Интерфейс для адреса из базы данных
+interface UserAddress {
+    id: number;
+    city: string;
+    street: string;
+    houseNumber: string;
+    apartment?: string | null;
+    entrance?: string | null;
+    floor?: string | null;
+    intercom?: string | null;
+}
+
 // Add this function after the imports but before the component
 // Helper function to log server responses
 async function logServerResponseByCoords(lat: number, lng: number) {
@@ -69,6 +81,10 @@ export default function AddressSelection() {
         lng: number;
     } | null>(null);
 
+    // Добавляем состояние для хранения адресов пользователя
+    const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
+    const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+
     // Initialize form with saved delivery address
     const [formData, setFormData] = useState<Partial<DeliveryAddress>>({
         street: deliveryAddress?.street || '',
@@ -96,18 +112,38 @@ export default function AddressSelection() {
     const debounceStreetRef = useRef<NodeJS.Timeout | null>(null);
     const debounceHouseRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Загружаем адреса пользователя при монтировании компонента
+    useEffect(() => {
+        const fetchUserAddresses = async () => {
+            try {
+                setIsLoadingAddresses(true);
+                const response = await fetch('/api/users/addresses');
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user addresses');
+                }
+
+                const data = await response.json();
+                setUserAddresses(data.addresses || []);
+            } catch (error) {
+                console.error('Error fetching user addresses:', error);
+            } finally {
+                setIsLoadingAddresses(false);
+            }
+        };
+
+        fetchUserAddresses();
+    }, []);
+
     // Get script URL from server
     useEffect(() => {
         const getScriptUrl = async () => {
             try {
                 setIsLoadingScript(true);
-                const response = await fetch('/api/yandex/script-url');
-                if (!response.ok) {
-                    throw new Error('Failed to get map script URL');
-                }
-
-                const data = await response.json();
-                setScriptUrl(data.scriptUrl);
+                // Устанавливаем жестко закодированный URL для Яндекс.Карт API с русской локализацией
+                setScriptUrl(
+                    'https://api-maps.yandex.ru/2.1/?apikey=efcbe3a5-5bec-453c-aad5-6fa8b63c9d6c&lang=ru_RU'
+                );
             } catch (error) {
                 console.error('Error getting map script URL:', error);
                 setError('Failed to initialize map service');
@@ -644,29 +680,75 @@ export default function AddressSelection() {
 
     // Save delivery address
     const handleSaveAddress = () => {
-        if (!formData.street || !formData.houseNumber || !formData.city) {
-            setError('Street, house number, and city are required');
+        // Проверяем наличие всех необходимых полей
+        if (!formData.city || !formData.street || !formData.houseNumber) {
+            setError('Пожалуйста, заполните все обязательные поля');
             return;
         }
 
-        if (visibleCoords) {
-            const address: DeliveryAddress = {
-                street: formData.street || '',
-                houseNumber: formData.houseNumber || '',
-                apartment: formData.apartment || '',
-                entrance: formData.entrance || '',
-                floor: formData.floor || '',
-                intercom: formData.intercom || '',
-                city: formData.city || '',
-                fullAddress: formData.fullAddress || '',
-                coordinates: {
-                    lat: visibleCoords.lat,
-                    lng: visibleCoords.lng,
-                },
-            };
+        // Создаем объект адреса доставки
+        const address: DeliveryAddress = {
+            city: formData.city || '',
+            street: formData.street || '',
+            houseNumber: formData.houseNumber || '',
+            apartment: formData.apartment || '',
+            entrance: formData.entrance || '',
+            floor: formData.floor || '',
+            intercom: formData.intercom || '',
+            fullAddress:
+                formData.fullAddress ||
+                `${formData.city}, ${formData.street}, ${formData.houseNumber}`,
+        };
 
-            setDeliveryAddress(address);
+        // Добавляем координаты, если они есть
+        if (visibleCoords) {
+            address.coordinates = {
+                lat: visibleCoords.lat,
+                lng: visibleCoords.lng,
+            };
         }
+
+        // Сохраняем адрес в API
+        const saveAddressToDb = async () => {
+            try {
+                const response = await fetch('/api/users/addresses', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        city: address.city,
+                        street: address.street,
+                        houseNumber: address.houseNumber,
+                        apartment: address.apartment,
+                        entrance: address.entrance,
+                        floor: address.floor,
+                        intercom: address.intercom,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save address');
+                }
+
+                // Обновляем список адресов пользователя
+                const fetchAddressesResponse = await fetch(
+                    '/api/users/addresses'
+                );
+                if (fetchAddressesResponse.ok) {
+                    const data = await fetchAddressesResponse.json();
+                    setUserAddresses(data.addresses || []);
+                }
+            } catch (error) {
+                console.error('Error saving address:', error);
+            }
+        };
+
+        // Вызываем функцию сохранения
+        saveAddressToDb();
+
+        // Устанавливаем адрес доставки
+        setDeliveryAddress(address);
     };
 
     // Process external GeoJSON data (e.g. from API responses)
@@ -1135,7 +1217,6 @@ export default function AddressSelection() {
                         // (result.subtitle.text.includes('город') ||
                         //     result.subtitle.text.includes('поселок') ||
                         //     result.subtitle.text.includes('село') ||
-                        //     result.subtitle.text.includes('деревня') ||
                         //     result.subtitle.text.includes(
                         //         'населенный пункт'
                         //     ) ||
@@ -1566,6 +1647,33 @@ export default function AddressSelection() {
         setHouseNumberSuggestions([]);
     };
 
+    // Функция для выбора адреса из выпадающего списка
+    const handleSelectSavedAddress = (address: UserAddress) => {
+        // Преобразуем адрес из БД в формат DeliveryAddress
+        const selectedAddress: DeliveryAddress = {
+            city: address.city || '',
+            street: address.street || '',
+            houseNumber: address.houseNumber || '',
+            apartment: address.apartment || '',
+            entrance: address.entrance || '',
+            floor: address.floor || '',
+            intercom: address.intercom || '',
+            fullAddress: `${address.city}, ${address.street}, ${address.houseNumber}`,
+        };
+
+        // Обновляем форму
+        setFormData({
+            ...formData,
+            ...selectedAddress,
+        });
+
+        // Обновляем адрес доставки
+        setDeliveryAddress(selectedAddress);
+
+        // Обновляем поисковый запрос
+        setSearchQuery(selectedAddress.fullAddress);
+    };
+
     return (
         <div className='bg-white rounded-lg shadow-md p-6'>
             {/* Only load Yandex Maps once we have the script URL */}
@@ -1584,486 +1692,265 @@ export default function AddressSelection() {
                 </div>
             )}
 
-            <h3 className='text-xl font-bold mb-4'>Delivery Address</h3>
+            <h3 className='text-xl font-bold mb-4'>Адрес доставки</h3>
 
-            {error && (
-                <div className='bg-red-50 text-red-700 p-3 rounded-md mb-4'>
-                    {error}
+            {/* Добавляем выпадающий список с адресами пользователя */}
+            {userAddresses.length > 0 && (
+                <div className='mb-6'>
+                    <label className='block text-sm font-medium text-gray-700 mb-2'>
+                        Выберите сохраненный адрес
+                    </label>
+                    <select
+                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                        onChange={(e) => {
+                            if (e.target.value) {
+                                const selectedAddress = userAddresses.find(
+                                    (addr) =>
+                                        addr.id === parseInt(e.target.value)
+                                );
+                                if (selectedAddress) {
+                                    handleSelectSavedAddress(selectedAddress);
+                                }
+                            }
+                        }}
+                        defaultValue=''
+                    >
+                        <option value='' disabled>
+                            Выберите адрес
+                        </option>
+                        {userAddresses.map((address) => (
+                            <option key={address.id} value={address.id}>
+                                {address.city}, {address.street},{' '}
+                                {address.houseNumber}
+                                {address.apartment
+                                    ? `, кв. ${address.apartment}`
+                                    : ''}
+                            </option>
+                        ))}
+                        <option value='new'>Ввести новый адрес</option>
+                    </select>
                 </div>
             )}
 
-            <div className='mb-6'>
+            {error && (
+                <div className='mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>
+                    <p>{error}</p>
+                </div>
+            )}
+
+            {/* Address search input */}
+            <div className='mb-4'>
+                <label
+                    htmlFor='address-input'
+                    className='block text-sm font-medium text-gray-700 mb-1'
+                >
+                    Найти адрес
+                </label>
                 <div className='relative'>
                     <input
                         type='text'
                         id='address-input'
+                        placeholder='Введите адрес...'
                         value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            debouncedSearch(e.target.value);
-                        }}
-                        onPaste={handleAddressInputPaste}
-                        placeholder='Search for address...'
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
+                        onChange={(e) => handleAddressSearch(e.target.value)}
+                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
                     />
                     {isLoading && (
                         <div className='absolute right-3 top-3'>
-                            <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
+                            <div className='animate-spin rounded-full h-5 w-5 border-b-2 border-red-600'></div>
                         </div>
                     )}
-                    <p className='text-xs text-gray-500 mt-1'>
-                        Tip: You can paste a Yandex Maps link, coordinates, or
-                        click on the map to select a location
-                    </p>
+                </div>
 
-                    {suggestions.length > 0 && (
-                        <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
-                            {suggestions.map((suggestion, index) => (
-                                <div
-                                    key={index}
-                                    className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
-                                    onClick={() =>
-                                        handleSelectSuggestion(suggestion)
-                                    }
-                                >
-                                    <div className='font-medium'>
-                                        {suggestion.title.text}
-                                    </div>
-                                    {suggestion.subtitle && (
-                                        <div className='text-sm text-gray-500'>
-                                            {suggestion.subtitle.text}
-                                        </div>
-                                    )}
-                                    {suggestion.distance && (
-                                        <div className='text-xs text-gray-400 mt-1'>
-                                            {suggestion.distance.text}
-                                        </div>
-                                    )}
+                {/* Suggestions dropdown */}
+                {suggestions.length > 0 && (
+                    <ul className='mt-1 max-h-60 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg z-10'>
+                        {suggestions.map((suggestion, index) => (
+                            <li
+                                key={index}
+                                onClick={() =>
+                                    handleSelectSuggestion(suggestion)
+                                }
+                                className='p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200'
+                            >
+                                <div className='font-medium'>
+                                    {suggestion.displayName ||
+                                        suggestion.name ||
+                                        suggestion.text}
                                 </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className='mb-6'>
-                <div
-                    ref={mapRef}
-                    style={{ height: '300px', width: '100%' }}
-                    className='rounded-lg'
-                ></div>
-
-                {visibleCoords && (
-                    <div className='mt-2 p-2 bg-gray-100 rounded-md text-sm'>
-                        <p className='font-medium'>Selected Coordinates:</p>
-                        <div className='flex items-center justify-between'>
-                            <span className='text-gray-700'>
-                                {visibleCoords.lat.toFixed(6)},{' '}
-                                {visibleCoords.lng.toFixed(6)}
-                            </span>
-                            <div className='space-x-2'>
-                                <button
-                                    onClick={() => {
-                                        const coordsText = `${visibleCoords.lat.toFixed(
-                                            6
-                                        )},${visibleCoords.lng.toFixed(6)}`;
-                                        navigator.clipboard.writeText(
-                                            coordsText
-                                        );
-                                        // Show a small notification
-                                        alert(
-                                            `Coordinates copied: ${coordsText}`
-                                        );
-                                    }}
-                                    className='text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600'
-                                >
-                                    Copy
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        // Get the coordinates string
-                                        const coordsText = `${visibleCoords.lat.toFixed(
-                                            6
-                                        )},${visibleCoords.lng.toFixed(6)}`;
-
-                                        // Update the address input field directly with the coordinates
-                                        const addressInput =
-                                            document.getElementById(
-                                                'address-input'
-                                            ) as HTMLInputElement;
-                                        if (addressInput) {
-                                            addressInput.value = coordsText;
-                                            // Trigger a change event to ensure React state updates
-                                            const event = new Event('input', {
-                                                bubbles: true,
-                                            });
-                                            addressInput.dispatchEvent(event);
-                                            setSearchQuery(coordsText);
-                                        }
-                                    }}
-                                    className='text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600'
-                                >
-                                    Paste to Input
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        // Log server response for these coordinates
-                                        logServerResponseByCoords(
-                                            visibleCoords.lat,
-                                            visibleCoords.lng
-                                        ).then((data) => {
-                                            alert(
-                                                `Server data logged to console for coordinates:\n${visibleCoords.lat.toFixed(
-                                                    6
-                                                )}, ${visibleCoords.lng.toFixed(
-                                                    6
-                                                )}`
-                                            );
-                                        });
-                                    }}
-                                    className='text-xs bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600'
-                                >
-                                    Log Server Data
-                                </button>
-
-                                <button
-                                    onClick={() => {
-                                        // Generate the API URL using our secure endpoint
-                                        fetch(
-                                            `/api/yandex/generate-geocode-url?lat=${visibleCoords.lat}&lng=${visibleCoords.lng}`
-                                        )
-                                            .then((response) => response.json())
-                                            .then((data) => {
-                                                // Copy the URL to clipboard
-                                                navigator.clipboard.writeText(
-                                                    data.url
-                                                );
-                                                // Show the URL in an alert
-                                                alert(
-                                                    `Geocoder API URL copied:\n${data.url}`
-                                                );
-                                            })
-                                            .catch((error) => {
-                                                alert(
-                                                    `Error generating URL: ${error.message}`
-                                                );
-                                            });
-                                    }}
-                                    className='text-xs bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600'
-                                >
-                                    Copy API URL
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        // Fetch data about this location from Yandex API and log it
-                                        fetch(
-                                            `/api/yandex/generate-geocode-url?lat=${visibleCoords.lat}&lng=${visibleCoords.lng}`
-                                        )
-                                            .then((response) => {
-                                                if (!response.ok) {
-                                                    throw new Error(
-                                                        `Error: ${response.status}`
-                                                    );
-                                                }
-                                                return response.json();
-                                            })
-                                            .then((data) => {
-                                                console.log(
-                                                    '--- GEOCODE URL GENERATED ---'
-                                                );
-                                                console.log(
-                                                    'Direct API URL:',
-                                                    data.url
-                                                );
-                                                console.log(
-                                                    'Coordinates:',
-                                                    data.coordinates
-                                                );
-
-                                                // Now fetch the actual data using our backend proxy
-                                                return fetch(
-                                                    `/api/yandex/search-by-coords?coords=${visibleCoords.lat},${visibleCoords.lng}`
-                                                );
-                                            })
-                                            .then((response) => {
-                                                if (!response.ok) {
-                                                    throw new Error(
-                                                        `Error: ${response.status}`
-                                                    );
-                                                }
-                                                return response.json();
-                                            })
-                                            .then((data) => {
-                                                console.log(
-                                                    '--- OBJECT DATA FROM API ---'
-                                                );
-                                                console.log(
-                                                    JSON.stringify(
-                                                        data,
-                                                        null,
-                                                        2
-                                                    )
-                                                );
-                                                console.log(
-                                                    '----------------------------'
-                                                );
-
-                                                // Display the data in an alert as well
-                                                alert(
-                                                    `Object data fetched! Check console for full details.\n\nAddress: ${
-                                                        data.address
-                                                    }\nCoordinates: ${visibleCoords.lat.toFixed(
-                                                        6
-                                                    )}, ${visibleCoords.lng.toFixed(
-                                                        6
-                                                    )}`
-                                                );
-                                            })
-                                            .catch((error) => {
-                                                console.error(
-                                                    'Error fetching object data:',
-                                                    error
-                                                );
-                                                alert(
-                                                    `Error fetching data: ${error.message}`
-                                                );
-                                            });
-                                    }}
-                                    className='text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600'
-                                >
-                                    Inspect Object
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                                {suggestion.description && (
+                                    <div className='text-sm text-gray-500'>
+                                        {suggestion.description}
+                                    </div>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
                 )}
-
-                {/* Hidden textarea for advanced GeoJSON paste functionality */}
-                <div className='mt-2'>
-                    <details className='text-sm text-gray-600'>
-                        <summary className='cursor-pointer font-medium hover:text-red-600'>
-                            Advanced: Paste GeoJSON coordinates
-                        </summary>
-                        <div className='mt-2'>
-                            <textarea
-                                placeholder='Paste GeoJSON data here...'
-                                className='w-full p-2 border border-gray-300 rounded text-xs h-24 font-mono'
-                                onPaste={handleGeoJsonPaste}
-                            ></textarea>
-                            <p className='text-xs text-gray-500 mt-1'>
-                                You can paste GeoJSON data from Yandex API to
-                                quickly set location
-                            </p>
-                        </div>
-                    </details>
-                </div>
             </div>
 
+            {/* Address form */}
+            <h4 className='font-medium text-lg mb-4'>Детали адреса</h4>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-6'>
                 <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        City *
-                    </label>
-                    <div className='relative'>
-                        <input
-                            type='text'
-                            name='city'
-                            value={formData.city}
-                            onChange={(e) => {
-                                handleInputChange(e);
-                                searchCity(e.target.value);
-                            }}
-                            required
-                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                        />
-                        {isLoadingCity && (
-                            <div className='absolute right-3 top-3'>
-                                <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
-                            </div>
-                        )}
-                        {citySuggestions.length > 0 && (
-                            <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
-                                {citySuggestions.map((suggestion, index) => (
-                                    <div
-                                        key={index}
-                                        className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
-                                        onClick={() =>
-                                            handleSelectCity(suggestion)
-                                        }
-                                    >
-                                        <div className='font-medium'>
-                                            {suggestion.title.text}
-                                        </div>
-                                        {suggestion.subtitle && (
-                                            <div className='text-sm text-gray-500'>
-                                                {suggestion.subtitle.text}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        Street *
-                    </label>
-                    <div className='relative'>
-                        <input
-                            type='text'
-                            name='street'
-                            value={formData.street}
-                            onChange={(e) => {
-                                handleInputChange(e);
-                                searchStreet(e.target.value);
-                            }}
-                            required
-                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                        />
-                        {isLoadingStreet && (
-                            <div className='absolute right-3 top-3'>
-                                <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
-                            </div>
-                        )}
-                        {streetSuggestions.length > 0 && (
-                            <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
-                                {streetSuggestions.map((suggestion, index) => (
-                                    <div
-                                        key={index}
-                                        className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
-                                        onClick={() =>
-                                            handleSelectStreet(suggestion)
-                                        }
-                                    >
-                                        <div className='font-medium'>
-                                            {suggestion.title.text}
-                                        </div>
-                                        {suggestion.subtitle && (
-                                            <div className='text-sm text-gray-500'>
-                                                {suggestion.subtitle.text}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        House Number *
-                    </label>
-                    <div className='relative'>
-                        <input
-                            type='text'
-                            name='houseNumber'
-                            value={formData.houseNumber}
-                            onChange={(e) => {
-                                handleInputChange(e);
-                                searchHouseNumber(e.target.value);
-                            }}
-                            required
-                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                        />
-                        {isLoadingHouseNumber && (
-                            <div className='absolute right-3 top-3'>
-                                <div className='animate-spin h-5 w-5 border-2 border-red-500 rounded-full border-t-transparent'></div>
-                            </div>
-                        )}
-                        {houseNumberSuggestions.length > 0 && (
-                            <div className='absolute z-10 w-full bg-white mt-1 border border-gray-300 rounded-md shadow-lg'>
-                                {houseNumberSuggestions.map(
-                                    (suggestion, index) => (
-                                        <div
-                                            key={index}
-                                            className='p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0'
-                                            onClick={() =>
-                                                handleSelectHouseNumber(
-                                                    suggestion
-                                                )
-                                            }
-                                        >
-                                            <div className='font-medium'>
-                                                {suggestion.title.text}
-                                            </div>
-                                            {suggestion.subtitle && (
-                                                <div className='text-sm text-gray-500'>
-                                                    {suggestion.subtitle.text}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        Apartment
+                    <label
+                        htmlFor='city'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Город*
                     </label>
                     <input
                         type='text'
+                        id='city'
+                        name='city'
+                        value={formData.city || ''}
+                        onChange={(e) => {
+                            handleInputChange(e);
+                            searchCity(e.target.value);
+                        }}
+                        required
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                    />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor='street'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Улица*
+                    </label>
+                    <input
+                        type='text'
+                        id='street'
+                        name='street'
+                        value={formData.street || ''}
+                        onChange={(e) => {
+                            handleInputChange(e);
+                            searchStreet(e.target.value);
+                        }}
+                        required
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                    />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor='houseNumber'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Номер дома*
+                    </label>
+                    <input
+                        type='text'
+                        id='houseNumber'
+                        name='houseNumber'
+                        value={formData.houseNumber || ''}
+                        onChange={(e) => {
+                            handleInputChange(e);
+                            searchHouseNumber(e.target.value);
+                        }}
+                        required
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                    />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor='apartment'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Квартира
+                    </label>
+                    <input
+                        type='text'
+                        id='apartment'
                         name='apartment'
-                        value={formData.apartment}
+                        value={formData.apartment || ''}
                         onChange={handleInputChange}
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        Entrance
-                    </label>
-                    <input
-                        type='text'
-                        name='entrance'
-                        value={formData.entrance}
-                        onChange={handleInputChange}
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        Floor
-                    </label>
-                    <input
-                        type='text'
-                        name='floor'
-                        value={formData.floor}
-                        onChange={handleInputChange}
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
-                    />
-                </div>
-
-                <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                        Intercom
-                    </label>
-                    <input
-                        type='text'
-                        name='intercom'
-                        value={formData.intercom}
-                        onChange={handleInputChange}
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent'
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
                     />
                 </div>
             </div>
 
-            <button
-                type='button'
-                onClick={handleSaveAddress}
-                className='w-full bg-red-600 text-white py-3 rounded-md font-medium hover:bg-red-700 transition duration-200'
-            >
-                Save Address
-            </button>
+            <h4 className='font-medium text-lg mb-4'>
+                Дополнительная информация
+            </h4>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
+                <div>
+                    <label
+                        htmlFor='entrance'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Подъезд
+                    </label>
+                    <input
+                        type='text'
+                        id='entrance'
+                        name='entrance'
+                        value={formData.entrance || ''}
+                        onChange={handleInputChange}
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                    />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor='floor'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Этаж
+                    </label>
+                    <input
+                        type='text'
+                        id='floor'
+                        name='floor'
+                        value={formData.floor || ''}
+                        onChange={handleInputChange}
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                    />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor='intercom'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Домофон
+                    </label>
+                    <input
+                        type='text'
+                        id='intercom'
+                        name='intercom'
+                        value={formData.intercom || ''}
+                        onChange={handleInputChange}
+                        className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                    />
+                </div>
+            </div>
+
+            <div className='mt-6'>
+                <button
+                    onClick={handleSaveAddress}
+                    disabled={
+                        !formData.city ||
+                        !formData.street ||
+                        !formData.houseNumber
+                    }
+                    className={`w-full p-3 rounded-md font-medium ${
+                        !formData.city ||
+                        !formData.street ||
+                        !formData.houseNumber
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-red-600 text-white hover:bg-red-700'
+                    }`}
+                >
+                    Сохранить адрес
+                </button>
+                <p className='text-xs text-gray-500 mt-2'>
+                    * Обязательные поля
+                </p>
+            </div>
         </div>
     );
 }

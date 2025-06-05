@@ -72,7 +72,7 @@ export default function ReviewCarousel({ reviews }: ReviewCarouselProps) {
                                     <FaStar
                                         key={i}
                                         className={
-                                            i < (review.rating ?? 5)
+                                            i < (review.rating ?? 0)
                                                 ? 'text-yellow-400'
                                                 : 'text-gray-600'
                                         }

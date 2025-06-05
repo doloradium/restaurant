@@ -12,6 +12,7 @@ import {
     FaEdit,
     FaTrash,
     FaExclamationTriangle,
+    FaStarHalfAlt,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { useCart } from '@/app/CartProvider';
@@ -80,7 +81,7 @@ const ReviewModal = ({
     onClose,
     onSubmit,
     itemId,
-    initialData = { rating: 5, text: '' },
+    initialData = { rating: 0, text: '' },
     isEditing = false,
 }: {
     isOpen: boolean;
@@ -90,7 +91,7 @@ const ReviewModal = ({
     initialData?: { rating: number; text: string };
     isEditing?: boolean;
 }) => {
-    const [rating, setRating] = useState(5);
+    const [rating, setRating] = useState(0);
     const [reviewText, setReviewText] = useState('');
     const MAX_CHARS = 300;
     const [modalKey, setModalKey] = useState(0); // Add key to force re-render
@@ -117,7 +118,7 @@ const ReviewModal = ({
         onClose();
         // Reset after closing animation would complete
         setTimeout(() => {
-            setRating(5);
+            setRating(0);
             setReviewText('');
         }, 300);
     };
@@ -503,26 +504,25 @@ export default function MenuItemClient({
                         </h1>
 
                         <div className='flex items-center mb-4'>
-                            <div className='flex items-center mr-4'>
+                            <div className='flex'>
                                 {[...Array(5)].map((_, i) => (
                                     <FaStar
                                         key={i}
-                                        className={`${
-                                            i < Math.floor(item.rating || 5)
+                                        className={
+                                            i < Math.floor(item.rating || 0)
                                                 ? 'text-yellow-400'
                                                 : 'text-gray-300'
-                                        } ${
-                                            i ===
-                                                Math.floor(item.rating || 5) &&
-                                            (item.rating || 5) % 1 > 0
-                                                ? 'text-yellow-200'
-                                                : ''
-                                        }`}
+                                        }
                                     />
                                 ))}
-                                <span className='ml-2 text-gray-600'>
-                                    {item.rating || 5} (
-                                    {item.reviews?.length || 0} отзывов)
+                                {/* Render a half star if needed */}
+                                {Math.floor(item.rating || 0) < 5 &&
+                                    (item.rating || 0) % 1 > 0 && (
+                                        <FaStarHalfAlt className='text-yellow-400' />
+                                    )}
+                                <span className='ml-2 text-sm text-gray-600'>
+                                    {item.rating || 0} ({reviews.length}{' '}
+                                    отзывов)
                                 </span>
                             </div>
 
@@ -600,7 +600,7 @@ export default function MenuItemClient({
                             </button>
                         </div>
 
-                        <div className='border-t border-gray-200 pt-6'>
+                        <div>
                             <div className='border-b border-gray-200'>
                                 <h3 className='pb-2 px-4 text-sm font-medium text-red-600 border-b-2 border-red-600'>
                                     Отзывы ({reviews.length})
@@ -627,7 +627,6 @@ export default function MenuItemClient({
                                                 >
                                                     <div className='flex items-center justify-between mb-2'>
                                                         <div className='flex items-center'>
-                                                            <div className='h-10 w-10 rounded-full bg-gray-300 mr-3'></div>
                                                             <div>
                                                                 <div className='font-medium text-gray-900'>
                                                                     {
@@ -850,7 +849,7 @@ export default function MenuItemClient({
                               rating: reviewToEdit.rating,
                               text: reviewToEdit.text,
                           }
-                        : { rating: 5, text: '' }
+                        : { rating: 0, text: '' }
                 }
                 isEditing={true}
             />

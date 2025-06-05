@@ -4,44 +4,76 @@ import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url!);
-    const id = searchParams.get('id');
-    const limitParam = searchParams.get('limit');
+    try {
+        const { searchParams } = new URL(req.url!);
+        const id = searchParams.get('id');
+        const limitParam = searchParams.get('limit');
 
-    // Parse limit parameter
-    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
+        // Parse limit parameter
+        const limit = limitParam ? parseInt(limitParam, 10) : undefined;
 
-    let reviews;
-    if (id) {
-        reviews = await prisma.review.findMany({
-            where: { itemId: Number(id) },
-            include: { user: true },
-            orderBy: { id: 'desc' }, // Most recent reviews first
-        });
-    } else {
-        // Get reviews, potentially with a limit
-        reviews = await prisma.review.findMany({
-            include: {
-                user: true,
-                item: {
-                    select: {
-                        name: true,
+        let reviews = [];
+        if (id) {
+            reviews = await prisma.review.findMany({
+                where: { itemId: Number(id) },
+                select: {
+                    id: true,
+                    itemId: true,
+                    userId: true,
+                    text: true,
+                    rating: true,
+                    createdAt: true,
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            surname: true,
+                        },
                     },
                 },
-            },
-            orderBy: { id: 'desc' }, // Most recent reviews first
-            take: limit,
-        });
+                orderBy: { id: 'desc' }, // Most recent reviews first
+            });
+        } else {
+            // Get reviews, potentially with a limit
+            reviews = await prisma.review.findMany({
+                select: {
+                    id: true,
+                    itemId: true,
+                    userId: true,
+                    text: true,
+                    rating: true,
+                    createdAt: true,
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            surname: true,
+                        },
+                    },
+                    item: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+                orderBy: { id: 'desc' }, // Most recent reviews first
+                take: limit,
+            });
 
-        // Transform the reviews for display
-        reviews = reviews.map((review) => {
-            return {
-                ...review,
-                dishName: review.item?.name || '',
-            };
-        });
+            // Transform the reviews for display
+            reviews = reviews.map((review) => {
+                return {
+                    ...review,
+                    dishName: review.item?.name || '',
+                };
+            });
+        }
+        return NextResponse.json(reviews);
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        // Return an empty array rather than an error to prevent client-side issues
+        return NextResponse.json([]);
     }
-    return NextResponse.json(reviews);
 }
 
 export async function POST(req: NextRequest) {
@@ -70,7 +102,7 @@ export async function POST(req: NextRequest) {
 
         // Parse the request body
         const { itemId, rating, text } = await req.json();
-        const ratingValue = rating ? parseInt(rating, 10) : 5;
+        const ratingValue = rating ? parseInt(rating, 10) : 0;
 
         // Validate required fields
         if (!itemId || !text) {
@@ -103,7 +135,15 @@ export async function POST(req: NextRequest) {
                 text,
                 rating: ratingValue,
             },
-            include: { user: true },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        surname: true,
+                    },
+                },
+            },
         });
 
         return NextResponse.json(newReview);

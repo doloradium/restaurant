@@ -1,28 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { dbHelpers } from '@/lib/db-helpers';
 
 export async function POST(req: NextRequest) {
     try {
-        const { userId, items, paymentType, address, status } =
+        const { userId, items, paymentType, addressId, deliveryTime, status } =
             await req.json();
 
         // Validate required fields
-        if (!userId || !items || !items.length || !paymentType || !status) {
+        if (
+            !userId ||
+            !items ||
+            !items.length ||
+            !paymentType ||
+            !status ||
+            !addressId ||
+            !deliveryTime
+        ) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
-        // Create the order with address fields from the user's delivery address
-        const order = await prisma.order.create({
+        // Create the order with the addressId and deliveryTime
+        const order = await dbHelpers.order.create({
             data: {
                 userId,
+                addressId,
                 paymentType,
                 status,
                 isPaid: paymentType === 'CARD', // Mark as paid if using card
                 isCompleted: false,
-                dateOrdered: new Date(),
+                deliveryTime: new Date(deliveryTime),
                 orderItems: {
                     create: items.map((item: any) => ({
                         itemId: item.itemId,
@@ -36,6 +45,7 @@ export async function POST(req: NextRequest) {
                         item: true,
                     },
                 },
+                address: true, // Include the address in the response
             },
         });
 
@@ -45,6 +55,47 @@ export async function POST(req: NextRequest) {
         console.error('Error creating order:', error);
         return NextResponse.json(
             { error: 'Failed to create order' },
+            { status: 500 }
+        );
+    }
+}
+
+// Add a GET endpoint to fetch user orders
+export async function GET(req: NextRequest) {
+    try {
+        const { searchParams } = new URL(req.url!);
+        const userId = searchParams.get('userId');
+
+        if (!userId) {
+            return NextResponse.json(
+                { error: 'User ID is required' },
+                { status: 400 }
+            );
+        }
+
+        // Get all orders for the user with their addresses
+        const orders = await dbHelpers.order.findMany({
+            where: {
+                userId: Number(userId),
+            },
+            include: {
+                orderItems: {
+                    include: {
+                        item: true,
+                    },
+                },
+                address: true,
+            },
+            orderBy: {
+                id: 'desc', // Most recent orders first
+            },
+        });
+
+        return NextResponse.json(orders);
+    } catch (error) {
+        console.error('Error fetching user orders:', error);
+        return NextResponse.json(
+            { error: 'Failed to fetch orders' },
             { status: 500 }
         );
     }

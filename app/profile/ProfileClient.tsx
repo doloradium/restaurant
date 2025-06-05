@@ -15,17 +15,30 @@ import {
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
+interface Address {
+    id: number;
+    city: string;
+    street: string;
+    houseNumber: string;
+    apartment?: string | null;
+    entrance?: string | null;
+    floor?: string | null;
+    intercom?: string | null;
+}
+
 interface User {
     id: number;
     name: string;
     surname: string;
     email: string;
-    phoneNumber: string;
-    street: string;
-    house: string;
-    apartment: string;
+    phoneNumber?: string | null;
     role: string;
-    rating: number;
+    rating?: number | null;
+    addresses?: Address[];
+    // For backward compatibility
+    street?: string;
+    house?: string;
+    apartment?: string;
 }
 
 interface ProfileClientProps {
@@ -54,8 +67,27 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         });
     };
 
+    const validatePhoneNumber = (phone: string) => {
+        // Базовая валидация российского номера телефона (принимает форматы +7XXXXXXXXXX или 8XXXXXXXXXX)
+        if (!phone) return true; // Допускаем пустой номер
+        const phoneRegex = /^(\+7|8)[0-9]{10}$/;
+        return phoneRegex.test(phone);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Валидация телефона
+        if (
+            formData.phoneNumber &&
+            !validatePhoneNumber(formData.phoneNumber)
+        ) {
+            toast.error(
+                'Пожалуйста, введите корректный номер телефона в формате +7XXXXXXXXXX или 8XXXXXXXXXX'
+            );
+            return;
+        }
+
         try {
             const response = await fetch('/api/user/update', {
                 method: 'PUT',
@@ -149,15 +181,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 <FaHistory className='mr-3' />{' '}
                                                 История заказов
                                             </button>
-                                        </li>
-                                        <li>
-                                            <Link
-                                                href='/'
-                                                className='w-full text-left px-4 py-2 rounded-md flex items-center text-gray-700 hover:bg-gray-50'
-                                            >
-                                                <FaHome className='mr-3' /> На
-                                                главную
-                                            </Link>
                                         </li>
                                         <li>
                                             <button
@@ -270,11 +293,14 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             id='phoneNumber'
                                                             name='phoneNumber'
                                                             value={
-                                                                formData.phoneNumber
+                                                                formData.phoneNumber ||
+                                                                ''
                                                             }
                                                             onChange={
                                                                 handleChange
                                                             }
+                                                            placeholder='+7XXXXXXXXXX'
+                                                            pattern='^(\+7|8)[0-9]{10}$'
                                                             className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
                                                         />
                                                     </div>
@@ -436,9 +462,17 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                         </h1>
                                     </div>
                                     <div className='p-6'>
-                                        {/* Orders list will be added here */}
-                                        <div className='text-center py-8 text-gray-500'>
-                                            Загрузка истории заказов...
+                                        <div className='text-center py-8'>
+                                            <p className='text-gray-500 mb-4'>
+                                                Вы еще не сделали ни одного
+                                                заказа.
+                                            </p>
+                                            <Link
+                                                href='/menu'
+                                                className='bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition duration-200'
+                                            >
+                                                Сделайте первый заказ
+                                            </Link>
                                         </div>
                                     </div>
                                 </div>

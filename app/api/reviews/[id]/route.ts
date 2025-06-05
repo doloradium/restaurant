@@ -60,7 +60,7 @@ export async function PUT(
 
         // Parse the request body
         const { rating, text } = await req.json();
-        const ratingValue = rating ? parseInt(rating, 10) : 5;
+        const ratingValue = rating ? parseInt(rating, 10) : 0;
 
         // Update the review
         const updatedReview = await prisma.review.update({

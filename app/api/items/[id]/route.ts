@@ -16,7 +16,21 @@ export async function GET(
             include: {
                 category: true,
                 reviews: {
-                    include: { user: true },
+                    select: {
+                        id: true,
+                        itemId: true,
+                        userId: true,
+                        text: true,
+                        rating: true,
+                        createdAt: true,
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                surname: true,
+                            },
+                        },
+                    },
                 },
             },
         });
@@ -31,14 +45,14 @@ export async function GET(
         `;
 
         // Calculate average rating from reviews
-        let avgRating = 5; // Default rating if no reviews
+        let avgRating = 0; // Default rating if no reviews
         if (item.reviews && item.reviews.length > 0) {
             const totalRating = item.reviews.reduce((sum, review) => {
-                // Use the review's rating if available, otherwise use 5 as default
+                // Use the review's rating if available, otherwise use 0 as default
                 const reviewRating =
                     (review as any).rating !== undefined
                         ? (review as any).rating
-                        : 5;
+                        : 0;
                 return sum + reviewRating;
             }, 0);
             avgRating = totalRating / item.reviews.length;

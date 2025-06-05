@@ -23,18 +23,18 @@ const CheckoutPage = () => {
 
     const CheckoutSchema = Yup.object().shape({
         cardNumber: Yup.string()
-            .matches(/^\d{16}$/, 'Card number must be 16 digits')
-            .required('Card number is required'),
+            .matches(/^\d{16}$/, 'Номер карты должен содержать 16 цифр')
+            .required('Введите номер карты'),
         expiryDate: Yup.string()
             .matches(
                 /^(0[1-9]|1[0-2])\/\d{2}$/,
-                'Expiry date must be in MM/YY format'
+                'Дата должна быть в формате ММ/ГГ'
             )
-            .required('Expiry date is required'),
+            .required('Введите срок действия'),
         cvv: Yup.string()
-            .matches(/^\d{3,4}$/, 'CVV must be 3 or 4 digits')
-            .required('CVV is required'),
-        name: Yup.string().required('Name is required'),
+            .matches(/^\d{3,4}$/, 'CVV должен содержать 3 или 4 цифры')
+            .required('Введите CVV'),
+        name: Yup.string().required('Введите имя владельца карты'),
     });
 
     const formik = useFormik({
@@ -166,7 +166,7 @@ const CheckoutPage = () => {
                                     </p>
                                 </div>
                                 <p className='text-gray-900 font-medium'>
-                                    ${(item.price * item.quantity).toFixed(2)}
+                                    ₽{(item.price * item.quantity).toFixed(2)}
                                 </p>
                             </div>
                         ))}
@@ -176,7 +176,7 @@ const CheckoutPage = () => {
                                     Итого
                                 </p>
                                 <p className='text-2xl font-bold text-red-600'>
-                                    ${totalPrice.toFixed(2)}
+                                    ₽{totalPrice.toFixed(2)}
                                 </p>
                             </div>
                         </div>

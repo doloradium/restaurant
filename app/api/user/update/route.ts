@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyAccessToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { dbHelpers } from '@/lib/db-helpers';
 
 export async function PUT(request: Request) {
     try {
@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
         }
 
         // Check if email is already taken by another user
-        const existingUser = await prisma.user.findFirst({
+        const existingUser = await dbHelpers.user.findFirst({
             where: {
                 email,
                 id: { not: Number(payload.userId) },
@@ -50,21 +50,64 @@ export async function PUT(request: Request) {
             );
         }
 
-        // Update user
-        const updatedUser = await prisma.user.update({
+        // Update user (without address fields)
+        const updatedUser = await dbHelpers.user.update({
             where: { id: Number(payload.userId) },
             data: {
                 name,
                 surname,
                 email,
                 phoneNumber,
-                street,
-                house,
-                apartment,
             },
         });
 
-        return NextResponse.json(updatedUser);
+        // Handle address information if provided
+        if (street && house) {
+            // Check if user has any addresses
+            const existingAddresses = await dbHelpers.address.findMany({
+                where: {
+                    userId: Number(payload.userId),
+                },
+            });
+
+            if (existingAddresses.length > 0) {
+                // Update the primary address (first one)
+                await dbHelpers.address.update({
+                    where: { id: existingAddresses[0].id },
+                    data: {
+                        street,
+                        houseNumber: house,
+                        apartment,
+                    },
+                });
+            } else {
+                // Create a new address
+                await dbHelpers.address.create({
+                    data: {
+                        userId: Number(payload.userId),
+                        city: 'Default City', // You might want to make this a parameter
+                        street,
+                        houseNumber: house,
+                        apartment,
+                    },
+                });
+            }
+        }
+
+        // Get user's addresses
+        const addresses = await dbHelpers.address.findMany({
+            where: {
+                userId: Number(payload.userId),
+            },
+        });
+
+        // Combine user data with addresses
+        const userWithAddresses = {
+            ...updatedUser,
+            addresses,
+        };
+
+        return NextResponse.json(userWithAddresses);
     } catch (error) {
         console.error('Error updating user:', error);
         return NextResponse.json(

@@ -84,7 +84,7 @@ export const UserCreate = () => {
                     ]}
                     defaultValue='USER'
                 />
-                <NumberInput source='rating' defaultValue={5} />
+                <NumberInput source='rating' defaultValue={0} />
             </SimpleForm>
         </Create>
     );

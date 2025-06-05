@@ -42,14 +42,34 @@ export default async function ProfilePage() {
                     surname: true,
                     email: true,
                     phoneNumber: true,
-                    street: true,
-                    house: true,
-                    apartment: true,
                     role: true,
                     rating: true,
+                    addresses: {
+                        select: {
+                            id: true,
+                            city: true,
+                            street: true,
+                            houseNumber: true,
+                            apartment: true,
+                            entrance: true,
+                            floor: true,
+                            intercom: true,
+                        },
+                    },
                 },
             });
             console.log('ProfilePage: Found user:', user);
+
+            // Get primary address for backward compatibility
+            if (user && user.addresses && user.addresses.length > 0) {
+                const primaryAddress = user.addresses[0];
+                user = {
+                    ...user,
+                    street: primaryAddress.street,
+                    house: primaryAddress.houseNumber,
+                    apartment: primaryAddress.apartment || '',
+                };
+            }
         } catch (error) {
             console.error('ProfilePage: Error finding user:', error);
         }

@@ -21,7 +21,7 @@ export default function DeliveryInfo({
 
     return (
         <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
-            <h3 className='text-xl font-bold mb-4'>Delivery Information</h3>
+            <h3 className='text-xl font-bold mb-4'>Информация о доставке</h3>
 
             {deliveryAddress && (
                 <div className='mb-4'>
@@ -29,9 +29,7 @@ export default function DeliveryInfo({
                         <div className='flex items-start'>
                             <FaMapMarkerAlt className='text-red-600 mt-1 mr-3 flex-shrink-0' />
                             <div>
-                                <h4 className='font-medium'>
-                                    Delivery Address
-                                </h4>
+                                <h4 className='font-medium'>Адрес доставки</h4>
                                 <p className='text-gray-700 mt-1'>
                                     {deliveryAddress.fullAddress}
                                 </p>
@@ -42,13 +40,13 @@ export default function DeliveryInfo({
                                     <p className='text-gray-600 text-sm mt-1'>
                                         {[
                                             deliveryAddress.apartment &&
-                                                `Apt: ${deliveryAddress.apartment}`,
+                                                `Кв: ${deliveryAddress.apartment}`,
                                             deliveryAddress.floor &&
-                                                `Floor: ${deliveryAddress.floor}`,
+                                                `Этаж: ${deliveryAddress.floor}`,
                                             deliveryAddress.entrance &&
-                                                `Entrance: ${deliveryAddress.entrance}`,
+                                                `Подъезд: ${deliveryAddress.entrance}`,
                                             deliveryAddress.intercom &&
-                                                `Intercom: ${deliveryAddress.intercom}`,
+                                                `Домофон: ${deliveryAddress.intercom}`,
                                         ]
                                             .filter(Boolean)
                                             .join(', ')}
@@ -61,7 +59,7 @@ export default function DeliveryInfo({
                                 onClick={onEditAddress}
                                 className='text-red-600 hover:text-red-800 flex items-center'
                             >
-                                <FaEdit className='mr-1' /> Edit
+                                <FaEdit className='mr-1' /> Изменить
                             </button>
                         )}
                     </div>
@@ -74,11 +72,11 @@ export default function DeliveryInfo({
                         <div className='flex items-start'>
                             <FaClock className='text-red-600 mt-1 mr-3 flex-shrink-0' />
                             <div>
-                                <h4 className='font-medium'>Delivery Time</h4>
+                                <h4 className='font-medium'>Время доставки</h4>
                                 <p className='text-gray-700 mt-1'>
                                     {format(
                                         new Date(deliveryTime.date),
-                                        'EEEE, MMMM d'
+                                        'EEEE, d MMMM'
                                     )}
                                 </p>
                                 <p className='text-gray-600 mt-1'>
@@ -91,7 +89,7 @@ export default function DeliveryInfo({
                                 onClick={onEditTime}
                                 className='text-red-600 hover:text-red-800 flex items-center'
                             >
-                                <FaEdit className='mr-1' /> Edit
+                                <FaEdit className='mr-1' /> Изменить
                             </button>
                         )}
                     </div>

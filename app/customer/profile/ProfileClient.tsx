@@ -54,8 +54,23 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         });
     };
 
+    const validatePhoneNumber = (phone: string) => {
+        // Basic Russian phone number validation (accepts formats like +7XXXXXXXXXX or 8XXXXXXXXXX)
+        const phoneRegex = /^(\+7|8)[0-9]{10}$/;
+        return phoneRegex.test(phone);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validate phone number
+        if (!validatePhoneNumber(formData.phoneNumber)) {
+            toast.error(
+                'Пожалуйста, введите корректный номер телефона в формате +7XXXXXXXXXX или 8XXXXXXXXXX'
+            );
+            return;
+        }
+
         try {
             const response = await fetch('/api/user/update', {
                 method: 'PUT',
@@ -149,15 +164,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                 <FaHistory className='mr-3' />{' '}
                                                 Order History
                                             </button>
-                                        </li>
-                                        <li>
-                                            <Link
-                                                href='/'
-                                                className='w-full text-left px-4 py-2 rounded-md flex items-center text-gray-700 hover:bg-gray-50'
-                                            >
-                                                <FaHome className='mr-3' /> Back
-                                                to Home
-                                            </Link>
                                         </li>
                                         <li>
                                             <button
@@ -275,6 +281,8 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                             onChange={
                                                                 handleChange
                                                             }
+                                                            placeholder='+7XXXXXXXXXX'
+                                                            pattern='^(\+7|8)[0-9]{10}$'
                                                             className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
                                                         />
                                                     </div>
@@ -479,14 +487,14 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                     <div className='p-6'>
                                         <div className='text-center py-8'>
                                             <p className='text-gray-500 mb-4'>
-                                                You haven't placed any orders
-                                                yet.
+                                                Вы еще не сделали ни одного
+                                                заказа.
                                             </p>
                                             <Link
                                                 href='/menu'
                                                 className='bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition duration-200'
                                             >
-                                                Browse Menu
+                                                Сделайте первый заказ
                                             </Link>
                                         </div>
                                     </div>
