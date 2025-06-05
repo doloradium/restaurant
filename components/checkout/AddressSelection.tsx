@@ -730,7 +730,7 @@ export default function AddressSelection() {
     };
 
     // Функция для выбора адреса из выпадающего списка
-    const handleSelectSavedAddress = (address: UserAddress) => {
+    const handleSelectSavedAddress = async (address: UserAddress) => {
         // Преобразуем адрес из БД в формат DeliveryAddress
         const selectedAddress: DeliveryAddress = {
             city: address.city || '',
@@ -754,6 +754,44 @@ export default function AddressSelection() {
 
         // Обновляем поисковый запрос
         setSearchQuery(selectedAddress.fullAddress);
+
+        // Запрашиваем координаты для адреса и обновляем карту
+        if (mapInstance) {
+            try {
+                setIsLoading(true);
+                const fullAddress = `${address.city}, ${address.street}, ${address.houseNumber}`;
+
+                // Используем API для получения координат
+                const response = await fetch(
+                    `/api/yandex/server-geocode?address=${encodeURIComponent(
+                        fullAddress
+                    )}`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Geocoding result for saved address:', data);
+
+                    if (data && data.coordinates) {
+                        // Обновляем видимые координаты
+                        setVisibleCoords({
+                            lat: data.coordinates.lat,
+                            lng: data.coordinates.lng,
+                        });
+
+                        // Центрируем карту на полученных координатах с высоким зумом
+                        mapInstance.setCenter(
+                            [data.coordinates.lat, data.coordinates.lng],
+                            17
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('Error geocoding saved address:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
     };
 
     // Работа компонента даже без Яндекс.Карт - ручной ввод адреса
@@ -1798,6 +1836,7 @@ export default function AddressSelection() {
                                         addr.id === parseInt(e.target.value)
                                 );
                                 if (selectedAddress) {
+                                    // Вызываем асинхронную функцию без ожидания результата
                                     handleSelectSavedAddress(selectedAddress);
                                 }
                             }

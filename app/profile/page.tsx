@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { verifyAccessToken, verifyRefreshToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import ProfileClient from './ProfileClient';
+import { redirect } from 'next/navigation';
 
 export default async function ProfilePage() {
     console.log('ProfilePage: Starting');
@@ -12,6 +13,12 @@ export default async function ProfilePage() {
         accessToken: !!accessToken,
         refreshToken: !!refreshToken,
     });
+
+    // If no tokens present, redirect to login page immediately
+    if (!accessToken && !refreshToken) {
+        console.log('ProfilePage: No tokens, redirecting to login');
+        redirect('/login');
+    }
 
     let user = null;
     let payload = null;
@@ -78,7 +85,8 @@ export default async function ProfilePage() {
     }
 
     if (!user) {
-        throw new Error('Не авторизован');
+        console.log('ProfilePage: User not found, redirecting to login');
+        redirect('/login');
     }
 
     return <ProfileClient user={user} />;

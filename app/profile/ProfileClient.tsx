@@ -112,18 +112,29 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
     const handleLogout = async () => {
         try {
+            // First show a loading toast
+            const loadingToast = toast.loading('Выполняется выход...');
+
             const response = await fetch('/api/auth/logout', {
                 method: 'POST',
                 credentials: 'include',
             });
+
+            // Clear loading toast
+            toast.dismiss(loadingToast);
 
             if (!response.ok) {
                 throw new Error('Failed to logout');
             }
 
             toast.success('Вы успешно вышли из системы');
-            router.push('/');
-            router.refresh();
+
+            // Give toast a moment to display before redirect
+            setTimeout(() => {
+                // Use replace instead of push to prevent going back to profile after logout
+                router.replace('/');
+                router.refresh();
+            }, 300);
         } catch (error) {
             toast.error('Ошибка выхода из системы');
             console.error('Error logging out:', error);

@@ -31,6 +31,9 @@ export async function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname;
     console.log('Middleware processing path:', path);
 
+    // Check if this is a profile page access
+    const isProfilePage = path === '/profile' || path.startsWith('/profile/');
+
     if (publicPaths.some((publicPath) => path.startsWith(publicPath))) {
         console.log('Path is public, allowing access');
         return NextResponse.next();
@@ -133,7 +136,10 @@ export const config = {
     matcher: [
         '/api/admin/:path*',
         '/admin/:path*',
+        '/profile',
         '/profile/:path*',
+        '/customer/profile',
+        '/customer/profile/:path*',
         '/orders/:path*',
         '/api/:path*',
     ],

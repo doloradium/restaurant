@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useDelivery, DeliveryTime } from '@/app/DeliveryProvider';
 import { format, addDays, isToday, isTomorrow } from 'date-fns';
+import { ru } from 'date-fns/locale';
 
 export default function DeliveryTimeSelection() {
     const { deliveryTime, setDeliveryTime } = useDelivery();
@@ -44,9 +45,9 @@ export default function DeliveryTimeSelection() {
 
     // Format date for display
     const formatDateLabel = (date: Date) => {
-        if (isToday(date)) return 'Today';
-        if (isTomorrow(date)) return 'Tomorrow';
-        return format(date, 'EEE, MMM d');
+        if (isToday(date)) return 'Сегодня';
+        if (isTomorrow(date)) return 'Завтра';
+        return format(date, 'd MMMM, EEE', { locale: ru });
     };
 
     const handleDateSelect = (date: Date) => {
@@ -72,10 +73,12 @@ export default function DeliveryTimeSelection() {
 
     return (
         <div className='bg-white rounded-lg shadow-md p-6'>
-            <h3 className='text-xl font-bold mb-6'>Delivery Time</h3>
+            <h3 className='text-xl font-bold mb-6'>Время доставки</h3>
 
             <div className='mb-6'>
-                <h4 className='font-medium text-gray-700 mb-3'>Select Date</h4>
+                <h4 className='font-medium text-gray-700 mb-3'>
+                    Выберите дату
+                </h4>
                 <div className='flex flex-wrap gap-2'>
                     {availableDates.map((date, index) => (
                         <button
@@ -96,7 +99,9 @@ export default function DeliveryTimeSelection() {
             </div>
 
             <div className='mb-6'>
-                <h4 className='font-medium text-gray-700 mb-3'>Select Time</h4>
+                <h4 className='font-medium text-gray-700 mb-3'>
+                    Выберите время
+                </h4>
                 {availableTimeSlots.length > 0 ? (
                     <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2'>
                         {availableTimeSlots.map((slot, index) => (
@@ -115,7 +120,7 @@ export default function DeliveryTimeSelection() {
                     </div>
                 ) : (
                     <p className='text-gray-500'>
-                        No delivery slots available for this date.
+                        Нет доступных слотов доставки на эту дату.
                     </p>
                 )}
             </div>
@@ -129,7 +134,7 @@ export default function DeliveryTimeSelection() {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
             >
-                Confirm Delivery Time
+                Подтвердить время доставки
             </button>
         </div>
     );

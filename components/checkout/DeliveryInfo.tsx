@@ -2,6 +2,7 @@
 
 import { useDelivery } from '@/app/DeliveryProvider';
 import { format } from 'date-fns';
+import { ru } from 'date-fns/locale';
 import { FaMapMarkerAlt, FaClock, FaEdit } from 'react-icons/fa';
 
 interface DeliveryInfoProps {
@@ -76,7 +77,8 @@ export default function DeliveryInfo({
                                 <p className='text-gray-700 mt-1'>
                                     {format(
                                         new Date(deliveryTime.date),
-                                        'EEEE, d MMMM'
+                                        'd MMMM, EEEE',
+                                        { locale: ru }
                                     )}
                                 </p>
                                 <p className='text-gray-600 mt-1'>
