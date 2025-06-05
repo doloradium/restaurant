@@ -2,19 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
     try {
-        // Get API key from environment variables
-        const apiKey = process.env.YANDEX_API_KEY;
+        // Get API key from environment variables - use the correct env variable name
+        const apiKey = process.env.GEOSUGGEST_KEY;
 
         if (!apiKey) {
-            console.error('Missing Yandex API key');
+            console.error('Missing Yandex API key (GEOSUGGEST_KEY)');
             return NextResponse.json(
                 { error: 'Map service configuration error' },
                 { status: 500 }
             );
         }
 
-        // Construct the Yandex Maps API script URL with the API key
-        const scriptUrl = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=en_US`;
+        // Construct the Yandex Maps API script URL with the API key and Russian language
+        const scriptUrl = `https://api-maps.yandex.ru/2.1/?apikey=${apiKey}&lang=ru_RU`;
+
+        console.log(
+            'Generated Yandex Maps script URL (without API key for security):',
+            'https://api-maps.yandex.ru/2.1/?apikey=*****&lang=ru_RU'
+        );
 
         return NextResponse.json({ scriptUrl });
     } catch (error) {

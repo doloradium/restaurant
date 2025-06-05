@@ -1,147 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
-        // Get coordinate parameters from URL
-        const searchParams = request.nextUrl.searchParams;
-        const coords = searchParams.get('coords');
-        const ll = searchParams.get('ll');
-        const text = searchParams.get('text');
+        // Get coords parameter from URL
+        const coordsParam = req.nextUrl.searchParams.get('coords');
 
-        // Extract coordinates from available parameters
-        let lat, lng;
-
-        if (coords) {
-            [lat, lng] = coords.split(',').map((c) => parseFloat(c.trim()));
-        } else if (text && text.includes(',')) {
-            // Try to parse coordinates from text parameter
-            [lat, lng] = text.split(',').map((c) => parseFloat(c.trim()));
-        } else if (ll) {
-            // Yandex sometimes uses ll in format "lng,lat"
-            [lng, lat] = ll.split(',').map((c) => parseFloat(c.trim()));
-        }
-
-        console.log('Search by coordinates:', { lat, lng });
-
-        if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+        if (!coordsParam) {
             return NextResponse.json(
-                { error: 'Valid coordinates are required' },
+                { error: 'Coordinates parameter is required' },
                 { status: 400 }
             );
         }
 
-        // Get API key from environment
-        const apiKey = process.env.GEOCODER_KEY || process.env.GEOSUGGEST_KEY;
-        if (!apiKey) {
+        // Split the coordinates
+        const [lat, lng] = coordsParam.split(',').map(Number);
+
+        if (isNaN(lat) || isNaN(lng)) {
             return NextResponse.json(
-                { error: 'API key not configured' },
-                { status: 500 }
+                { error: 'Invalid coordinates format' },
+                { status: 400 }
             );
         }
 
-        // Format coordinates according to Yandex Geocoder API documentation
-        // The geocode parameter accepts coordinates directly in format "longitude,latitude"
-        const formattedCoords = `${lng},${lat}`;
+        // Check API key
+        const apiKey = process.env.GEOCODER_KEY;
 
-        // Use Yandex's Geocoder API v1 as per documentation
-        const url = `https://geocode-maps.yandex.ru/v1/?apikey=${apiKey}&geocode=${formattedCoords}&format=json`;
-        console.log('Making request to Yandex Geocoder API v1');
+        if (!apiKey) {
+            console.warn(
+                'Missing Yandex API key (GEOCODER_KEY), returning backup response'
+            );
+            return createBackupResponse(lat, lng);
+        }
 
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json',
-            },
-        });
+        // Make request to Yandex API
+        const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${lng},${lat}&format=json&lang=ru_RU`;
 
-        console.log('Yandex API response status:', response.status);
+        const response = await fetch(url);
 
         if (!response.ok) {
-            const errorText = await response.text();
             console.error(
-                `Yandex API error: ${response.status} - ${errorText}`
+                `API request failed: ${response.status} ${response.statusText}`
             );
-            return NextResponse.json(
-                {
-                    error: `API response error: ${response.status}`,
-                    details: errorText,
-                },
-                { status: response.status }
-            );
+            return createBackupResponse(lat, lng);
         }
 
         const data = await response.json();
 
-        // Process geocoder response - v1 API response format is different from 1.x
-        try {
-            if (!data.response || !data.response.GeoObjectCollection) {
-                return NextResponse.json(
-                    { error: 'Invalid response format from Geocoder API' },
-                    { status: 500 }
-                );
-            }
+        // Process the response
+        const geoObject =
+            data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
 
-            const collection = data.response.GeoObjectCollection;
-            const featureMembers = collection.featureMember || [];
-
-            if (featureMembers.length === 0) {
-                return NextResponse.json(
-                    { error: 'No results found for these coordinates' },
-                    { status: 404 }
-                );
-            }
-
-            const geoObject = featureMembers[0]?.GeoObject;
-            if (!geoObject) {
-                return NextResponse.json(
-                    { error: 'Invalid response structure' },
-                    { status: 500 }
-                );
-            }
-
-            // Extract address from response
-            const address =
-                geoObject.metaDataProperty?.GeocoderMetaData?.text || '';
-
-            // Check for additional place details
-            const name = geoObject.name || '';
-            const description = geoObject.description || '';
-
-            // Return location details
-            return NextResponse.json({
-                address: address,
-                name: name,
-                description: description,
-                coordinates: {
-                    lat: lat,
-                    lng: lng,
-                },
-                raw: geoObject, // Include raw data for debugging
-            });
-        } catch (processingError) {
-            console.error(
-                'Error processing geocoding response:',
-                processingError
-            );
-            return NextResponse.json(
-                {
-                    error: 'Failed to process response',
-                    details:
-                        processingError instanceof Error
-                            ? processingError.message
-                            : String(processingError),
-                },
-                { status: 500 }
-            );
+        if (!geoObject) {
+            return createBackupResponse(lat, lng);
         }
+
+        const address =
+            geoObject.metaDataProperty?.GeocoderMetaData?.text || '';
+        const components =
+            geoObject.metaDataProperty?.GeocoderMetaData?.Address?.Components ||
+            [];
+
+        // Format our response
+        const formattedResponse = {
+            address,
+            coordinates: { lat, lng },
+            raw: geoObject,
+            components: components.map((c: any) => ({
+                kind: c.kind,
+                name: c.name,
+            })),
+        };
+
+        return NextResponse.json(formattedResponse);
     } catch (error) {
-        console.error('Search by coordinates error:', error);
+        console.error('Error in search-by-coords API:', error);
         return NextResponse.json(
-            {
-                error: 'Failed to search by coordinates',
-                details: error instanceof Error ? error.message : String(error),
-            },
+            { error: 'Failed to search by coordinates' },
             { status: 500 }
         );
     }
+}
+
+// Create a backup response when API is not available
+function createBackupResponse(lat: number, lng: number) {
+    return NextResponse.json({
+        address: `Примерные координаты: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+        coordinates: { lat, lng },
+        components: [
+            { kind: 'country', name: 'Россия' },
+            { kind: 'locality', name: 'Неизвестный город' },
+            { kind: 'street', name: 'Неизвестная улица' },
+            { kind: 'house', name: '1' },
+        ],
+        raw: {
+            metaDataProperty: {
+                GeocoderMetaData: {
+                    text: `Примерные координаты: ${lat.toFixed(
+                        6
+                    )}, ${lng.toFixed(6)}`,
+                    Address: {
+                        Components: [
+                            { kind: 'country', name: 'Россия' },
+                            { kind: 'locality', name: 'Неизвестный город' },
+                            { kind: 'street', name: 'Неизвестная улица' },
+                            { kind: 'house', name: '1' },
+                        ],
+                    },
+                },
+            },
+        },
+    });
 }

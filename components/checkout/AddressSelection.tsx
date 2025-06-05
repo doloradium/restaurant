@@ -140,13 +140,58 @@ export default function AddressSelection() {
         const getScriptUrl = async () => {
             try {
                 setIsLoadingScript(true);
-                // Устанавливаем жестко закодированный URL для Яндекс.Карт API с русской локализацией
-                setScriptUrl(
-                    'https://api-maps.yandex.ru/2.1/?apikey=efcbe3a5-5bec-453c-aad5-6fa8b63c9d6c&lang=ru_RU'
-                );
+
+                // Добавляем повторные попытки для большей надежности
+                let retries = 3;
+                let response = null;
+                let error = null;
+
+                while (retries > 0 && !response) {
+                    try {
+                        response = await fetch('/api/yandex/script-url');
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                    } catch (err) {
+                        error = err;
+                        retries--;
+                        // Ждем перед повторной попыткой
+                        if (retries > 0) {
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, 500)
+                            );
+                        }
+                    }
+                }
+
+                // Если все попытки не удались, выбрасываем последнюю ошибку
+                if (!response && error) {
+                    throw error;
+                }
+
+                if (!response) {
+                    throw new Error('Не удалось получить URL скрипта карты');
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                setScriptUrl(data.scriptUrl || '');
+
+                if (!data.scriptUrl) {
+                    console.error('No script URL returned from server');
+                    setError('API ключ Яндекс.Карт не настроен');
+                }
             } catch (error) {
                 console.error('Error getting map script URL:', error);
-                setError('Failed to initialize map service');
+                setError(
+                    'Не удалось инициализировать сервис карт. Вы можете ввести адрес вручную.'
+                );
+                // Даже при ошибке позволяем компоненту работать с ручным вводом
+                setIsLoadingScript(false);
             } finally {
                 setIsLoadingScript(false);
             }
@@ -371,8 +416,12 @@ export default function AddressSelection() {
 
     // Handle address search
     const handleAddressSearch = async (query: string) => {
-        if (!query) return;
+        if (!query) {
+            setSuggestions([]);
+            return;
+        }
 
+        setSearchQuery(query);
         setIsLoading(true);
         try {
             // Use our server-side API instead of direct Yandex API calls
@@ -388,10 +437,12 @@ export default function AddressSelection() {
 
             if (data && data.results) {
                 setSuggestions(data.results.slice(0, 5));
+            } else {
+                setSuggestions([]);
             }
         } catch (error) {
             console.error('Error searching address:', error);
-            setError('Failed to search address');
+            setError('Не удалось получить варианты адресов');
         } finally {
             setIsLoading(false);
         }
@@ -678,6 +729,62 @@ export default function AddressSelection() {
         }, 0);
     };
 
+    // Функция для выбора адреса из выпадающего списка
+    const handleSelectSavedAddress = (address: UserAddress) => {
+        // Преобразуем адрес из БД в формат DeliveryAddress
+        const selectedAddress: DeliveryAddress = {
+            city: address.city || '',
+            street: address.street || '',
+            houseNumber: address.houseNumber || '',
+            apartment: address.apartment || '',
+            entrance: address.entrance || '',
+            floor: address.floor || '',
+            intercom: address.intercom || '',
+            fullAddress: `${address.city}, ${address.street}, ${address.houseNumber}`,
+        };
+
+        // Обновляем форму
+        setFormData({
+            ...formData,
+            ...selectedAddress,
+        });
+
+        // Обновляем адрес доставки
+        setDeliveryAddress(selectedAddress);
+
+        // Обновляем поисковый запрос
+        setSearchQuery(selectedAddress.fullAddress);
+    };
+
+    // Работа компонента даже без Яндекс.Карт - ручной ввод адреса
+    const handleManualAddressInput = () => {
+        if (!formData.city || !formData.street || !formData.houseNumber) {
+            setError('Пожалуйста, заполните все обязательные поля адреса');
+            return;
+        }
+
+        // Формируем полный адрес
+        const fullAddress = `${formData.city}, ${formData.street}, ${formData.houseNumber}`;
+
+        // Обновляем поле поиска
+        setSearchQuery(fullAddress);
+
+        // Создаем объект адреса
+        const address: DeliveryAddress = {
+            city: formData.city || '',
+            street: formData.street || '',
+            houseNumber: formData.houseNumber || '',
+            apartment: formData.apartment || '',
+            entrance: formData.entrance || '',
+            floor: formData.floor || '',
+            intercom: formData.intercom || '',
+            fullAddress: fullAddress,
+        };
+
+        // Устанавливаем адрес доставки
+        setDeliveryAddress(address);
+    };
+
     // Save delivery address
     const handleSaveAddress = () => {
         // Проверяем наличие всех необходимых полей
@@ -685,6 +792,9 @@ export default function AddressSelection() {
             setError('Пожалуйста, заполните все обязательные поля');
             return;
         }
+
+        // Вызываем функцию ручного ввода для корректного обновления адреса
+        handleManualAddressInput();
 
         // Создаем объект адреса доставки
         const address: DeliveryAddress = {
@@ -1647,33 +1757,6 @@ export default function AddressSelection() {
         setHouseNumberSuggestions([]);
     };
 
-    // Функция для выбора адреса из выпадающего списка
-    const handleSelectSavedAddress = (address: UserAddress) => {
-        // Преобразуем адрес из БД в формат DeliveryAddress
-        const selectedAddress: DeliveryAddress = {
-            city: address.city || '',
-            street: address.street || '',
-            houseNumber: address.houseNumber || '',
-            apartment: address.apartment || '',
-            entrance: address.entrance || '',
-            floor: address.floor || '',
-            intercom: address.intercom || '',
-            fullAddress: `${address.city}, ${address.street}, ${address.houseNumber}`,
-        };
-
-        // Обновляем форму
-        setFormData({
-            ...formData,
-            ...selectedAddress,
-        });
-
-        // Обновляем адрес доставки
-        setDeliveryAddress(selectedAddress);
-
-        // Обновляем поисковый запрос
-        setSearchQuery(selectedAddress.fullAddress);
-    };
-
     return (
         <div className='bg-white rounded-lg shadow-md p-6'>
             {/* Only load Yandex Maps once we have the script URL */}
@@ -1694,6 +1777,12 @@ export default function AddressSelection() {
 
             <h3 className='text-xl font-bold mb-4'>Адрес доставки</h3>
 
+            {error && (
+                <div className='mb-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded'>
+                    <p>{error}</p>
+                </div>
+            )}
+
             {/* Добавляем выпадающий список с адресами пользователя */}
             {userAddresses.length > 0 && (
                 <div className='mb-6'>
@@ -1703,7 +1792,7 @@ export default function AddressSelection() {
                     <select
                         className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
                         onChange={(e) => {
-                            if (e.target.value) {
+                            if (e.target.value && e.target.value !== 'new') {
                                 const selectedAddress = userAddresses.find(
                                     (addr) =>
                                         addr.id === parseInt(e.target.value)
@@ -1732,62 +1821,79 @@ export default function AddressSelection() {
                 </div>
             )}
 
-            {error && (
-                <div className='mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded'>
-                    <p>{error}</p>
+            {/* Примечание о ручном вводе */}
+            {!isYandexReady && !isLoadingScript && (
+                <div className='mb-4 p-3 bg-blue-50 text-blue-700 rounded-md'>
+                    <p>Адрес можно ввести вручную, заполнив форму ниже.</p>
                 </div>
             )}
 
-            {/* Address search input */}
-            <div className='mb-4'>
-                <label
-                    htmlFor='address-input'
-                    className='block text-sm font-medium text-gray-700 mb-1'
-                >
-                    Найти адрес
-                </label>
-                <div className='relative'>
-                    <input
-                        type='text'
-                        id='address-input'
-                        placeholder='Введите адрес...'
-                        value={searchQuery}
-                        onChange={(e) => handleAddressSearch(e.target.value)}
-                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
-                    />
-                    {isLoading && (
-                        <div className='absolute right-3 top-3'>
-                            <div className='animate-spin rounded-full h-5 w-5 border-b-2 border-red-600'></div>
-                        </div>
+            {/* Address search input - показываем, только если карта доступна */}
+            {(isYandexReady || !scriptUrl) && (
+                <div className='mb-4'>
+                    <label
+                        htmlFor='address-input'
+                        className='block text-sm font-medium text-gray-700 mb-1'
+                    >
+                        Найти адрес
+                    </label>
+                    <div className='relative'>
+                        <input
+                            type='text'
+                            id='address-input'
+                            placeholder='Введите адрес...'
+                            value={searchQuery}
+                            onChange={(e) =>
+                                handleAddressSearch(e.target.value)
+                            }
+                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
+                        />
+                        {isLoading && (
+                            <div className='absolute right-3 top-3'>
+                                <div className='animate-spin rounded-full h-5 w-5 border-b-2 border-red-600'></div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Suggestions dropdown */}
+                    {suggestions.length > 0 && (
+                        <ul className='mt-1 max-h-60 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg z-10'>
+                            {suggestions.map((suggestion, index) => (
+                                <li
+                                    key={index}
+                                    onClick={() =>
+                                        handleSelectSuggestion(suggestion)
+                                    }
+                                    className='p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200'
+                                >
+                                    <div className='font-medium'>
+                                        {suggestion.displayName ||
+                                            suggestion.name ||
+                                            suggestion.text ||
+                                            suggestion.title?.text}
+                                    </div>
+                                    {(suggestion.description ||
+                                        suggestion.subtitle?.text) && (
+                                        <div className='text-sm text-gray-500'>
+                                            {suggestion.description ||
+                                                suggestion.subtitle?.text}
+                                        </div>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
                     )}
                 </div>
+            )}
 
-                {/* Suggestions dropdown */}
-                {suggestions.length > 0 && (
-                    <ul className='mt-1 max-h-60 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg z-10'>
-                        {suggestions.map((suggestion, index) => (
-                            <li
-                                key={index}
-                                onClick={() =>
-                                    handleSelectSuggestion(suggestion)
-                                }
-                                className='p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200'
-                            >
-                                <div className='font-medium'>
-                                    {suggestion.displayName ||
-                                        suggestion.name ||
-                                        suggestion.text}
-                                </div>
-                                {suggestion.description && (
-                                    <div className='text-sm text-gray-500'>
-                                        {suggestion.description}
-                                    </div>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
+            {/* Map placeholder */}
+            {isYandexReady && (
+                <div
+                    ref={mapRef}
+                    className='h-60 mb-6 bg-gray-200 rounded-md'
+                    style={{ width: '100%' }}
+                ></div>
+            )}
 
             {/* Address form */}
             <h4 className='font-medium text-lg mb-4'>Детали адреса</h4>
@@ -1806,7 +1912,10 @@ export default function AddressSelection() {
                         value={formData.city || ''}
                         onChange={(e) => {
                             handleInputChange(e);
-                            searchCity(e.target.value);
+                            // Для ручного ввода без карты
+                            if (e.target.value) {
+                                handleManualAddressInput();
+                            }
                         }}
                         required
                         className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
@@ -1827,7 +1936,10 @@ export default function AddressSelection() {
                         value={formData.street || ''}
                         onChange={(e) => {
                             handleInputChange(e);
-                            searchStreet(e.target.value);
+                            // Для ручного ввода без карты
+                            if (formData.city && e.target.value) {
+                                handleManualAddressInput();
+                            }
                         }}
                         required
                         className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
@@ -1848,7 +1960,14 @@ export default function AddressSelection() {
                         value={formData.houseNumber || ''}
                         onChange={(e) => {
                             handleInputChange(e);
-                            searchHouseNumber(e.target.value);
+                            // Для ручного ввода без карты
+                            if (
+                                formData.city &&
+                                formData.street &&
+                                e.target.value
+                            ) {
+                                handleManualAddressInput();
+                            }
                         }}
                         required
                         className='w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
