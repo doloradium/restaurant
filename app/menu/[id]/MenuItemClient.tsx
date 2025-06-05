@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,9 +9,70 @@ import {
     FaArrowLeft,
     FaPlus,
     FaMinus,
+    FaEdit,
+    FaTrash,
+    FaExclamationTriangle,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { useCart } from '@/app/CartProvider';
+import { useAuth } from '@/app/AuthProvider';
+
+// Confirmation Modal Component
+const ConfirmationModal = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    title,
+    message,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    message: string;
+}) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+            <div className='bg-white rounded-lg shadow-xl max-w-md w-full'>
+                <div className='p-6'>
+                    <div className='flex items-center mb-4'>
+                        <FaExclamationTriangle
+                            className='text-yellow-500 mr-3'
+                            size={24}
+                        />
+                        <h3 className='text-xl font-bold text-gray-900'>
+                            {title}
+                        </h3>
+                    </div>
+
+                    <p className='text-gray-600 mb-6'>{message}</p>
+
+                    <div className='flex justify-end space-x-3'>
+                        <button
+                            type='button'
+                            onClick={onClose}
+                            className='px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200'
+                        >
+                            Отмена
+                        </button>
+                        <button
+                            type='button'
+                            onClick={() => {
+                                onConfirm();
+                                onClose();
+                            }}
+                            className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700'
+                        >
+                            Удалить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // Add this ReviewModal component
 const ReviewModal = ({
@@ -19,23 +80,57 @@ const ReviewModal = ({
     onClose,
     onSubmit,
     itemId,
+    initialData = { rating: 5, text: '' },
+    isEditing = false,
 }: {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: { rating: number; text: string }) => void;
     itemId: string;
+    initialData?: { rating: number; text: string };
+    isEditing?: boolean;
 }) => {
     const [rating, setRating] = useState(5);
     const [reviewText, setReviewText] = useState('');
+    const MAX_CHARS = 300;
+    const [modalKey, setModalKey] = useState(0); // Add key to force re-render
+
+    // Initialize values when modal opens with fresh data
+    useEffect(() => {
+        if (isOpen) {
+            setRating(initialData.rating);
+            setReviewText(initialData.text);
+            setModalKey((prev) => prev + 1);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
+    const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const text = e.target.value;
+        if (text.length <= MAX_CHARS) {
+            setReviewText(text);
+        }
+    };
+
+    const handleClose = () => {
+        onClose();
+        // Reset after closing animation would complete
+        setTimeout(() => {
+            setRating(5);
+            setReviewText('');
+        }, 300);
+    };
+
     return (
-        <div className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'>
+        <div
+            key={modalKey}
+            className='fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4'
+        >
             <div className='bg-white rounded-lg shadow-xl max-w-md w-full'>
                 <div className='p-6'>
                     <h3 className='text-xl font-bold text-gray-900 mb-4'>
-                        Написать отзыв
+                        {isEditing ? 'Редактировать отзыв' : 'Написать отзыв'}
                     </h3>
 
                     <div className='mb-4'>
@@ -74,16 +169,20 @@ const ReviewModal = ({
                             id='review-text'
                             rows={4}
                             value={reviewText}
-                            onChange={(e) => setReviewText(e.target.value)}
-                            className='w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500'
+                            onChange={handleTextChange}
+                            className='w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none'
                             placeholder='Расскажите о вашем опыте с этим блюдом...'
+                            maxLength={MAX_CHARS}
                         ></textarea>
+                        <div className='text-xs text-gray-500 mt-1 text-right'>
+                            {reviewText.length}/{MAX_CHARS} символов
+                        </div>
                     </div>
 
                     <div className='flex justify-end space-x-3 mt-6'>
                         <button
                             type='button'
-                            onClick={onClose}
+                            onClick={handleClose}
                             className='px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200'
                         >
                             Отмена
@@ -101,7 +200,7 @@ const ReviewModal = ({
                             }}
                             className='px-4 py-2 text-white bg-red-600 rounded-md hover:bg-red-700'
                         >
-                            Отправить отзыв
+                            {isEditing ? 'Сохранить' : 'Отправить отзыв'}
                         </button>
                     </div>
                 </div>
@@ -121,10 +220,29 @@ export default function MenuItemClient({
 }) {
     const router = useRouter();
     const [quantity, setQuantity] = useState(1);
-    const [activeTab, setActiveTab] = useState('description');
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const { addToCart } = useCart();
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const { user } = useAuth();
+    const [currentUserReview, setCurrentUserReview] = useState<any>(null);
+    const [reviewToEdit, setReviewToEdit] = useState<any>(null);
+    const [reviewToDelete, setReviewToDelete] = useState<any>(null);
+
+    // Check if the current user has already left a review
+    useEffect(() => {
+        if (user && reviews.length > 0) {
+            const userReview = reviews.find(
+                (review) => review.user?.id === user.id
+            );
+            if (userReview) {
+                setCurrentUserReview(userReview);
+            }
+        } else {
+            setCurrentUserReview(null);
+        }
+    }, [user, reviews]);
 
     if (!item) {
         return (
@@ -216,6 +334,68 @@ export default function MenuItemClient({
             }
 
             toast.error(errorMessage);
+        }
+    };
+
+    const handleEditReview = async (data: { rating: number; text: string }) => {
+        if (!currentUserReview) return;
+
+        try {
+            const response = await fetch(
+                `/api/reviews/${currentUserReview.id}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        rating: data.rating,
+                        text: data.text,
+                    }),
+                }
+            );
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    responseData.error || 'Failed to update review'
+                );
+            }
+
+            toast.success('Отзыв успешно обновлен!');
+            setIsEditModalOpen(false);
+
+            // Refresh the page to show the updated review
+            router.refresh();
+        } catch (error: any) {
+            console.error('Error updating review:', error);
+            toast.error('Не удалось обновить отзыв.');
+        }
+    };
+
+    const handleDeleteReview = async () => {
+        if (!reviewToDelete) return;
+
+        try {
+            const response = await fetch(`/api/reviews/${reviewToDelete.id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete review');
+            }
+
+            toast.success('Отзыв успешно удален!');
+            setCurrentUserReview(null);
+            setReviewToDelete(null);
+
+            // Refresh the page to update the reviews list
+            router.refresh();
+        } catch (error: any) {
+            console.error('Error deleting review:', error);
+            toast.error('Не удалось удалить отзыв.');
         }
     };
 
@@ -421,55 +601,32 @@ export default function MenuItemClient({
                         </div>
 
                         <div className='border-t border-gray-200 pt-6'>
-                            <div className='flex border-b border-gray-200'>
-                                <button
-                                    className={`pb-2 px-4 text-sm font-medium ${
-                                        activeTab === 'description'
-                                            ? 'text-red-600 border-b-2 border-red-600'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                    onClick={() => setActiveTab('description')}
-                                >
-                                    Описание
-                                </button>
-                                <button
-                                    className={`pb-2 px-4 text-sm font-medium ${
-                                        activeTab === 'reviews'
-                                            ? 'text-red-600 border-b-2 border-red-600'
-                                            : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                                    onClick={() => setActiveTab('reviews')}
-                                >
+                            <div className='border-b border-gray-200'>
+                                <h3 className='pb-2 px-4 text-sm font-medium text-red-600 border-b-2 border-red-600'>
                                     Отзывы ({reviews.length})
-                                </button>
+                                </h3>
                             </div>
 
                             <div className='py-4'>
-                                {activeTab === 'description' && (
-                                    <div className='prose max-w-none text-gray-600'>
-                                        <p>{item.description}</p>
-                                    </div>
-                                )}
+                                <div>
+                                    <h3 className='font-medium text-gray-900 mb-3'>
+                                        Отзывы клиентов
+                                    </h3>
 
-                                {activeTab === 'reviews' && (
-                                    <div>
-                                        <h3 className='font-medium text-gray-900 mb-3'>
-                                            Отзывы клиентов
-                                        </h3>
-
-                                        {reviews.length === 0 ? (
-                                            <p className='text-gray-500'>
-                                                Пока нет отзывов. Будьте первым,
-                                                кто оставит отзыв!
-                                            </p>
-                                        ) : (
-                                            <div className='space-y-6'>
-                                                {reviews.map((review) => (
-                                                    <div
-                                                        key={review.id}
-                                                        className='border-b border-gray-200 pb-6'
-                                                    >
-                                                        <div className='flex items-center mb-2'>
+                                    {reviews.length === 0 ? (
+                                        <p className='text-gray-500'>
+                                            Пока нет отзывов. Будьте первым, кто
+                                            оставит отзыв!
+                                        </p>
+                                    ) : (
+                                        <div className='space-y-6'>
+                                            {reviews.map((review) => (
+                                                <div
+                                                    key={review.id}
+                                                    className='border-b border-gray-200 pb-6'
+                                                >
+                                                    <div className='flex items-center justify-between mb-2'>
+                                                        <div className='flex items-center'>
                                                             <div className='h-10 w-10 rounded-full bg-gray-300 mr-3'></div>
                                                             <div>
                                                                 <div className='font-medium text-gray-900'>
@@ -507,34 +664,102 @@ export default function MenuItemClient({
                                                                         )
                                                                     )}
                                                                     <span className='ml-2 text-xs text-gray-500'>
-                                                                        {new Date(
-                                                                            review.createdAt ||
-                                                                                review.date
-                                                                        ).toLocaleDateString()}
+                                                                        {(() => {
+                                                                            const timestamp =
+                                                                                review.createdAt ||
+                                                                                review.date;
+                                                                            // Convert timestamp to milliseconds if it's in seconds
+                                                                            const dateObj =
+                                                                                new Date(
+                                                                                    typeof timestamp ===
+                                                                                        'number' &&
+                                                                                    timestamp <
+                                                                                        10000000000
+                                                                                        ? timestamp *
+                                                                                          1000 // Convert seconds to milliseconds
+                                                                                        : timestamp
+                                                                                );
+                                                                            return dateObj.toLocaleDateString(
+                                                                                'ru-RU',
+                                                                                {
+                                                                                    year: 'numeric',
+                                                                                    month: '2-digit',
+                                                                                    day: '2-digit',
+                                                                                }
+                                                                            );
+                                                                        })()}
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <p className='text-gray-600'>
-                                                            {review.text}
-                                                        </p>
+                                                        {user &&
+                                                            user.id ===
+                                                                review.user
+                                                                    .id && (
+                                                                <div className='flex space-x-2'>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setReviewToEdit(
+                                                                                review
+                                                                            );
+                                                                            setIsEditModalOpen(
+                                                                                true
+                                                                            );
+                                                                        }}
+                                                                        className='text-gray-500 hover:text-blue-600'
+                                                                        title='Редактировать отзыв'
+                                                                    >
+                                                                        <FaEdit />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setReviewToDelete(
+                                                                                review
+                                                                            );
+                                                                            setIsDeleteModalOpen(
+                                                                                true
+                                                                            );
+                                                                        }}
+                                                                        className='text-gray-500 hover:text-red-600'
+                                                                        title='Удалить отзыв'
+                                                                    >
+                                                                        <FaTrash />
+                                                                    </button>
+                                                                </div>
+                                                            )}
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        <div className='mt-6'>
-                                            <button
-                                                className='text-red-600 font-medium hover:text-red-700'
-                                                onClick={() =>
-                                                    setIsReviewModalOpen(true)
-                                                }
-                                            >
-                                                Написать отзыв
-                                            </button>
+                                                    <p className='text-gray-600'>
+                                                        {review.text}
+                                                    </p>
+                                                </div>
+                                            ))}
                                         </div>
+                                    )}
+
+                                    <div className='mt-6'>
+                                        {user ? (
+                                            !currentUserReview ? (
+                                                <button
+                                                    className='text-red-600 font-medium hover:text-red-700'
+                                                    onClick={() =>
+                                                        setIsReviewModalOpen(
+                                                            true
+                                                        )
+                                                    }
+                                                >
+                                                    Написать отзыв
+                                                </button>
+                                            ) : null
+                                        ) : (
+                                            <Link
+                                                href='/login'
+                                                className='text-red-600 font-medium hover:text-red-700'
+                                            >
+                                                Войдите, чтобы написать отзыв
+                                            </Link>
+                                        )}
                                     </div>
-                                )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -612,6 +837,30 @@ export default function MenuItemClient({
                 onClose={() => setIsReviewModalOpen(false)}
                 onSubmit={handleReviewSubmit}
                 itemId={item.id}
+            />
+
+            <ReviewModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSubmit={handleEditReview}
+                itemId={item.id}
+                initialData={
+                    reviewToEdit
+                        ? {
+                              rating: reviewToEdit.rating,
+                              text: reviewToEdit.text,
+                          }
+                        : { rating: 5, text: '' }
+                }
+                isEditing={true}
+            />
+
+            <ConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={handleDeleteReview}
+                title='Удаление отзыва'
+                message='Вы уверены, что хотите удалить этот отзыв? Это действие нельзя будет отменить.'
             />
         </div>
     );

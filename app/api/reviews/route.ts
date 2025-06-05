@@ -89,31 +89,24 @@ export async function POST(req: NextRequest) {
         });
 
         if (existingReview) {
-            // Update the existing review
-            const updatedReview = await prisma.review.update({
-                where: { id: existingReview.id },
-                data: {
-                    text,
-                    rating: ratingValue,
-                },
-                include: { user: true },
-            });
-
-            return NextResponse.json(updatedReview);
-        } else {
-            // Create a new review
-            const newReview = await prisma.review.create({
-                data: {
-                    itemId: Number(itemId),
-                    userId: Number(userId),
-                    text,
-                    rating: ratingValue,
-                },
-                include: { user: true },
-            });
-
-            return NextResponse.json(newReview);
+            return NextResponse.json(
+                { error: 'Вы уже оставили отзыв на это блюдо' },
+                { status: 400 }
+            );
         }
+
+        // Create a new review
+        const newReview = await prisma.review.create({
+            data: {
+                itemId: Number(itemId),
+                userId: Number(userId),
+                text,
+                rating: ratingValue,
+            },
+            include: { user: true },
+        });
+
+        return NextResponse.json(newReview);
     } catch (error) {
         console.error('Error creating review:', error);
         return NextResponse.json(
