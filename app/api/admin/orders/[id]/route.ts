@@ -31,6 +31,18 @@ export async function GET(req: Request, { params }: { params: Params }) {
                         phoneNumber: true,
                     },
                 },
+                address: {
+                    select: {
+                        id: true,
+                        city: true,
+                        street: true,
+                        houseNumber: true,
+                        apartment: true,
+                        entrance: true,
+                        floor: true,
+                        intercom: true,
+                    },
+                },
                 orderItems: {
                     include: {
                         item: true,

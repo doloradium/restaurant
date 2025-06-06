@@ -24,6 +24,18 @@ export async function GET(req: NextRequest) {
                         phoneNumber: true,
                     },
                 },
+                address: {
+                    select: {
+                        id: true,
+                        city: true,
+                        street: true,
+                        houseNumber: true,
+                        apartment: true,
+                        entrance: true,
+                        floor: true,
+                        intercom: true,
+                    },
+                },
                 orderItems: {
                     include: {
                         item: true,
@@ -31,7 +43,7 @@ export async function GET(req: NextRequest) {
                 },
             },
             orderBy: {
-                dateOrdered: 'desc',
+                deliveryTime: 'desc',
             },
         });
 
@@ -54,6 +66,7 @@ export async function POST(req: NextRequest) {
             data,
             include: {
                 orderItems: true,
+                address: true,
                 user: {
                     select: {
                         id: true,

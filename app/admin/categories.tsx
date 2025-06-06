@@ -15,17 +15,12 @@ import {
     Toolbar,
     ToolbarProps,
 } from 'react-admin';
-import { Typography } from '@mui/material';
 
 export const CategoryList = () => (
     <List>
         <Datagrid rowClick='edit' bulkActionButtons={<BulkDeleteButton />}>
             <TextField source='id' label='ID' />
             <TextField source='name' label='Название' />
-            <TextField
-                source='originalName'
-                label='Системное название (англ.)'
-            />
         </Datagrid>
     </List>
 );
@@ -42,19 +37,7 @@ export const CategoryEdit = () => {
     return (
         <Edit>
             <SimpleForm toolbar={<EditToolbar />}>
-                <TextInput source='name' label='Название (рус.)' fullWidth />
-                <TextInput
-                    source='originalName'
-                    label='Системное название (англ.)'
-                    fullWidth
-                />
-                <Typography
-                    variant='body2'
-                    sx={{ mb: 2, color: 'text.secondary' }}
-                >
-                    * Системное название должно быть на английском языке и
-                    используется для API запросов и URL ссылок.
-                </Typography>
+                <TextInput source='name' label='Название' fullWidth />
             </SimpleForm>
         </Edit>
     );
@@ -73,19 +56,7 @@ export const CategoryCreate = () => {
     return (
         <Create mutationOptions={{ onSuccess }}>
             <SimpleForm toolbar={<EditToolbar />}>
-                <TextInput source='name' label='Название (рус.)' required />
-                <TextInput
-                    source='originalName'
-                    label='Системное название (англ.)'
-                    required
-                />
-                <Typography
-                    variant='body2'
-                    sx={{ mb: 2, color: 'text.secondary' }}
-                >
-                    * Системное название должно быть на английском языке и
-                    используется для API запросов и URL ссылок.
-                </Typography>
+                <TextInput source='name' label='Название' required />
             </SimpleForm>
         </Create>
     );

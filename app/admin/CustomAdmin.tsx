@@ -3,6 +3,7 @@
 import { Admin, Resource, Layout, AppBar, LayoutProps } from 'react-admin';
 import { Box, Typography } from '@mui/material';
 import LogoutButton from './components/LogoutButton';
+import i18nProvider from './i18n/i18nProvider';
 
 // Custom AppBar with logout button
 const CustomAppBar = (props: any) => (
@@ -24,7 +25,12 @@ const CustomLayout = (props: LayoutProps) => (
 // Custom Admin component
 const CustomAdmin = ({ children, dataProvider }: any) => {
     return (
-        <Admin layout={CustomLayout} dataProvider={dataProvider}>
+        <Admin
+            layout={CustomLayout}
+            dataProvider={dataProvider}
+            i18nProvider={i18nProvider}
+            defaultTheme='light'
+        >
             {children}
         </Admin>
     );

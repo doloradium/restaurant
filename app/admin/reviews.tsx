@@ -14,18 +14,34 @@ import {
     BulkDeleteButton,
     useRedirect,
     useNotify,
+    NumberInput,
+    FunctionField,
 } from 'react-admin';
+import NoSortDatagrid from './components/NoSortDatagrid';
 
 export const ReviewList = () => (
     <List>
-        <Datagrid rowClick='edit' bulkActionButtons={<BulkDeleteButton />}>
+        <NoSortDatagrid
+            rowClick='edit'
+            bulkActionButtons={<BulkDeleteButton />}
+        >
             <TextField source='id' />
-            <TextField source='item.name' label='Item' />
-            <TextField source='user.name' label='User Name' />
-            <TextField source='user.surname' label='User Surname' />
-            <DateField source='createdAt' />
-            <TextField source='text' />
-        </Datagrid>
+            <TextField source='item.name' label='Блюдо' />
+            <TextField source='user.name' label='Имя пользователя' />
+            <TextField source='user.surname' label='Фамилия пользователя' />
+            <FunctionField
+                source='rating'
+                label='Рейтинг'
+                render={(record) => {
+                    if (!record || record.rating === undefined) {
+                        return 'Нет данных';
+                    }
+                    return `${record.rating} / 5`;
+                }}
+            />
+            <DateField source='createdAt' label='Дата создания' />
+            <TextField source='text' label='Текст отзыва' />
+        </NoSortDatagrid>
     </List>
 );
 
@@ -34,12 +50,12 @@ export const ReviewEdit = () => {
     const notify = useNotify();
 
     const onSuccess = () => {
-        notify('Review updated successfully');
+        notify('Отзыв успешно обновлен');
         redirect('list', 'reviews');
     };
 
     const onError = (error: any) => {
-        notify(`Error: ${error.message || 'Failed to update review'}`, {
+        notify(`Ошибка: ${error.message || 'Не удалось обновить отзыв'}`, {
             type: 'error',
         });
     };
@@ -53,13 +69,29 @@ export const ReviewEdit = () => {
             }}
         >
             <SimpleForm>
-                <ReferenceInput source='itemId' reference='items'>
-                    <SelectInput optionText='name' />
+                <ReferenceInput source='itemId' reference='items' label='Блюдо'>
+                    <SelectInput label='Блюдо' optionText='name' />
                 </ReferenceInput>
-                <ReferenceInput source='userId' reference='users'>
-                    <SelectInput optionText='email' />
+                <ReferenceInput
+                    source='userId'
+                    reference='users'
+                    label='Пользователь'
+                >
+                    <SelectInput label='Пользователь' optionText='email' />
                 </ReferenceInput>
-                <TextInput source='text' multiline required />
+                <NumberInput
+                    source='rating'
+                    label='Рейтинг'
+                    min={1}
+                    max={5}
+                    defaultValue={5}
+                />
+                <TextInput
+                    source='text'
+                    multiline
+                    required
+                    label='Текст отзыва'
+                />
             </SimpleForm>
         </Edit>
     );
@@ -70,20 +102,40 @@ export const ReviewCreate = () => {
     const notify = useNotify();
 
     const onSuccess = () => {
-        notify('Review created successfully');
+        notify('Отзыв успешно создан');
         redirect('list', 'reviews');
     };
 
     return (
         <Create mutationOptions={{ onSuccess }}>
             <SimpleForm>
-                <ReferenceInput source='itemId' reference='items'>
-                    <SelectInput optionText='name' required />
+                <ReferenceInput source='itemId' reference='items' label='Блюдо'>
+                    <SelectInput label='Блюдо' optionText='name' required />
                 </ReferenceInput>
-                <ReferenceInput source='userId' reference='users'>
-                    <SelectInput optionText='email' required />
+                <ReferenceInput
+                    source='userId'
+                    reference='users'
+                    label='Пользователь'
+                >
+                    <SelectInput
+                        label='Пользователь'
+                        optionText='email'
+                        required
+                    />
                 </ReferenceInput>
-                <TextInput source='text' multiline required />
+                <NumberInput
+                    source='rating'
+                    label='Рейтинг'
+                    min={1}
+                    max={5}
+                    defaultValue={5}
+                />
+                <TextInput
+                    source='text'
+                    multiline
+                    required
+                    label='Текст отзыва'
+                />
             </SimpleForm>
         </Create>
     );

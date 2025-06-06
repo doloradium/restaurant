@@ -112,6 +112,7 @@ export async function PUT(
             text: data.text,
             ...(data.userId && { userId: parseInt(data.userId) }),
             ...(data.itemId && { itemId: parseInt(data.itemId) }),
+            ...(data.rating !== undefined && { rating: parseInt(data.rating) }),
         };
 
         console.log('Sanitized data for update:', sanitizedData);

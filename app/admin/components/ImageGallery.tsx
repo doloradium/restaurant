@@ -63,15 +63,17 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         try {
             const response = await fetch(`/api/admin/items/${itemId}/images`);
             if (!response.ok) {
-                throw new Error('Failed to fetch images');
+                throw new Error('Не удалось загрузить изображения');
             }
             const data = await response.json();
             setImages(data);
         } catch (error) {
             console.error('Error fetching images:', error);
             notify(
-                `Error loading images: ${
-                    error instanceof Error ? error.message : 'Unknown error'
+                `Ошибка загрузки изображений: ${
+                    error instanceof Error
+                        ? error.message
+                        : 'Неизвестная ошибка'
                 }`,
                 { type: 'error' }
             );
@@ -81,7 +83,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     };
 
     const handleDeleteImage = async (imageId: number) => {
-        if (!confirm('Are you sure you want to delete this image?')) {
+        if (!confirm('Вы уверены, что хотите удалить это изображение?')) {
             return;
         }
 
@@ -92,10 +94,12 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to delete image');
+                throw new Error(
+                    errorData.error || 'Не удалось удалить изображение'
+                );
             }
 
-            notify('Image deleted successfully', { type: 'success' });
+            notify('Изображение успешно удалено', { type: 'success' });
 
             // Remove from local state
             setImages(images.filter((img) => img.id !== imageId));
@@ -107,8 +111,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         } catch (error) {
             console.error('Delete error:', error);
             notify(
-                `Delete failed: ${
-                    error instanceof Error ? error.message : 'Unknown error'
+                `Ошибка удаления: ${
+                    error instanceof Error
+                        ? error.message
+                        : 'Неизвестная ошибка'
                 }`,
                 { type: 'error' }
             );
@@ -116,14 +122,14 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
     };
 
     if (!itemId) {
-        return <Typography>No item selected</Typography>;
+        return <Typography>Не выбрано ни одного блюда</Typography>;
     }
 
     return (
         <Card sx={{ mb: 3 }} data-testid='image-gallery' ref={galleryRef}>
             <CardContent>
                 <Typography variant='h6' gutterBottom>
-                    Item Images
+                    Изображения блюда
                 </Typography>
 
                 {loading ? (
@@ -132,7 +138,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                     </Box>
                 ) : images.length === 0 ? (
                     <Typography variant='body2' color='textSecondary'>
-                        No images available
+                        Нет доступных изображений
                     </Typography>
                 ) : (
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -158,7 +164,7 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                                     >
                                         <ImageView
                                             source={image.imageUrl}
-                                            alt={`Item Image ${image.id}`}
+                                            alt={`Изображение блюда ${image.id}`}
                                             className='w-full h-full object-contain'
                                         />
                                     </Box>

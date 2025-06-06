@@ -20,17 +20,19 @@ export async function GET(
             where: {
                 id: userId,
             },
-            select: {
-                id: true,
-                name: true,
-                surname: true,
-                email: true,
-                phoneNumber: true,
-                street: true,
-                house: true,
-                apartment: true,
-                role: true,
-                rating: true,
+            include: {
+                addresses: {
+                    select: {
+                        id: true,
+                        city: true,
+                        street: true,
+                        houseNumber: true,
+                        apartment: true,
+                        entrance: true,
+                        floor: true,
+                        intercom: true,
+                    },
+                },
             },
         });
 
@@ -73,26 +75,74 @@ export async function PUT(
             delete data.passwordHash;
         }
 
+        // Extract address data if provided
+        const addressData = {
+            city: data.city,
+            street: data.street,
+            houseNumber: data.houseNumber,
+            apartment: data.apartment,
+            entrance: data.entrance,
+            floor: data.floor,
+            intercom: data.intercom,
+        };
+
+        // Remove address fields from user data
+        const {
+            city,
+            street,
+            houseNumber,
+            apartment,
+            entrance,
+            floor,
+            intercom,
+            addresses,
+            ...userData
+        } = data;
+
+        // First, update the user data
         const updatedUser = await prisma.user.update({
             where: {
                 id: userId,
             },
-            data,
-            select: {
-                id: true,
-                name: true,
-                surname: true,
-                email: true,
-                phoneNumber: true,
-                street: true,
-                house: true,
-                apartment: true,
-                role: true,
-                rating: true,
+            data: userData,
+            include: {
+                addresses: true,
             },
         });
 
-        return NextResponse.json(updatedUser);
+        // If we have address data, update or create the address
+        if (addressData.street && addressData.city && addressData.houseNumber) {
+            // Check if the user already has addresses
+            if (updatedUser.addresses && updatedUser.addresses.length > 0) {
+                // Update the first address
+                await prisma.address.update({
+                    where: {
+                        id: updatedUser.addresses[0].id,
+                    },
+                    data: addressData,
+                });
+            } else {
+                // Create a new address
+                await prisma.address.create({
+                    data: {
+                        ...addressData,
+                        userId: userId,
+                    },
+                });
+            }
+        }
+
+        // Fetch the updated user with addresses
+        const refreshedUser = await prisma.user.findUnique({
+            where: {
+                id: userId,
+            },
+            include: {
+                addresses: true,
+            },
+        });
+
+        return NextResponse.json(refreshedUser);
     } catch (error) {
         console.error('Error updating user:', error);
         return NextResponse.json(
@@ -133,6 +183,13 @@ export async function DELETE(
 
         // Delete related reviews
         await prisma.review.deleteMany({
+            where: {
+                userId: userId,
+            },
+        });
+
+        // Delete related addresses
+        await prisma.address.deleteMany({
             where: {
                 userId: userId,
             },

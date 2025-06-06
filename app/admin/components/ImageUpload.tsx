@@ -41,7 +41,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
     const handleUpload = async () => {
         if (!file) {
-            notify('Please select a file to upload', { type: 'warning' });
+            notify('Пожалуйста, выберите файл для загрузки', {
+                type: 'warning',
+            });
             return;
         }
 
@@ -59,10 +61,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to upload image');
+                throw new Error(
+                    data.error || 'Не удалось загрузить изображение'
+                );
             }
 
-            notify('Image uploaded successfully', { type: 'success' });
+            notify('Изображение успешно загружено', { type: 'success' });
             setFile(null);
             setPreview(null);
 
@@ -72,8 +76,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         } catch (error) {
             console.error('Upload error:', error);
             notify(
-                `Upload failed: ${
-                    error instanceof Error ? error.message : 'Unknown error'
+                `Ошибка загрузки: ${
+                    error instanceof Error
+                        ? error.message
+                        : 'Неизвестная ошибка'
                 }`,
                 { type: 'error' }
             );
@@ -86,7 +92,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         <Card sx={{ mb: 3 }}>
             <CardContent>
                 <Typography variant='h6' gutterBottom>
-                    Upload Image
+                    Загрузка изображения
                 </Typography>
 
                 <input
@@ -104,7 +110,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                             component='span'
                             color='primary'
                         >
-                            Select Image
+                            Выбрать изображение
                         </Button>
                     </label>
 
@@ -118,7 +124,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                         <Box sx={{ mt: 2, mb: 2 }}>
                             <img
                                 src={preview}
-                                alt='Preview'
+                                alt='Предпросмотр'
                                 style={{
                                     maxWidth: '100%',
                                     maxHeight: '200px',
@@ -138,7 +144,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                         {loading ? (
                             <CircularProgress size={24} color='inherit' />
                         ) : (
-                            'Upload'
+                            'Загрузить'
                         )}
                     </Button>
                 </Box>

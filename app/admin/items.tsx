@@ -24,11 +24,13 @@ import {
     Identifier,
     useGetIdentity,
     BulkDeleteButton,
+    ReferenceField,
 } from 'react-admin';
 import { useState, useRef, useEffect } from 'react';
 import ImageUpload from './components/ImageUpload';
 import ImageGallery from './components/ImageGallery';
 import ImageView from './components/ImageView';
+import NoSortDatagrid from './components/NoSortDatagrid';
 import {
     Box,
     Divider,
@@ -39,13 +41,22 @@ import {
 
 export const ItemList = () => (
     <List>
-        <Datagrid rowClick='edit' bulkActionButtons={<BulkDeleteButton />}>
+        <NoSortDatagrid
+            rowClick='edit'
+            bulkActionButtons={<BulkDeleteButton />}
+        >
             <TextField source='id' label='ID' />
             <TextField source='name' label='Название' />
             <TextField source='description' label='Описание' />
             <NumberField source='price' label='Цена' />
-            <TextField source='categoryId' label='Категория ID' />
-        </Datagrid>
+            <ReferenceField
+                source='categoryId'
+                reference='categories'
+                label='Категория'
+            >
+                <TextField label='Категория' source='name' />
+            </ReferenceField>
+        </NoSortDatagrid>
     </List>
 );
 
@@ -70,7 +81,7 @@ const ItemEditContent = () => {
                     reference='categories'
                     label='Категория'
                 >
-                    <SelectInput optionText='name' />
+                    <SelectInput label='Категория' optionText='name' />
                 </ReferenceInput>
             </SimpleForm>
 
@@ -238,8 +249,15 @@ export const ItemCreate = () => {
                         source='categoryId'
                         reference='categories'
                         label='Категория'
+                        placeholder='Выберите категорию'
                     >
-                        <SelectInput optionText='name' fullWidth required />
+                        <SelectInput
+                            label='Категория'
+                            placeholder='Выберите категорию'
+                            optionText='name'
+                            fullWidth
+                            required
+                        />
                     </ReferenceInput>
 
                     <Box sx={{ mt: 3, mb: 2 }}>
@@ -249,14 +267,25 @@ export const ItemCreate = () => {
                         <Divider sx={{ mb: 3 }} />
 
                         <input
+                            accept='image/*'
+                            style={{ display: 'none' }}
+                            id='item-create-image-upload'
                             type='file'
                             multiple
-                            accept='image/*'
                             onChange={(e) => {
                                 const files = Array.from(e.target.files || []);
                                 handleFileSelect(files);
                             }}
                         />
+                        <label htmlFor='item-create-image-upload'>
+                            <Button
+                                variant='contained'
+                                component='span'
+                                color='primary'
+                            >
+                                Выбрать изображения
+                            </Button>
+                        </label>
 
                         {selectedFiles.length > 0 && (
                             <Box sx={{ mt: 2 }}>

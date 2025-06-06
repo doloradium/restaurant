@@ -155,6 +155,23 @@ export const dataProvider: DataProvider = {
                 ) {
                     cleanData.courierId = parseInt(cleanData.courierId);
                 }
+            } else if (resource === 'items') {
+                // Clean item-specific data
+                delete cleanData.category;
+                delete cleanData.images;
+                delete cleanData.reviews;
+                delete cleanData.id;
+
+                // Ensure numeric values are properly formatted
+                if (cleanData.price && typeof cleanData.price === 'string') {
+                    cleanData.price = parseFloat(cleanData.price);
+                }
+                if (
+                    cleanData.categoryId &&
+                    typeof cleanData.categoryId === 'string'
+                ) {
+                    cleanData.categoryId = parseInt(cleanData.categoryId);
+                }
             }
 
             console.log('Cleaned data for update:', cleanData);

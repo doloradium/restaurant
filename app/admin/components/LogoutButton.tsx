@@ -19,15 +19,15 @@ const LogoutButton = () => {
             });
 
             if (response.ok) {
-                toast.success('Logged out successfully');
+                toast.success('Вы успешно вышли из системы');
                 // Redirect to admin login page
                 router.push('/admin-login');
             } else {
-                toast.error('Failed to log out');
+                toast.error('Не удалось выйти');
             }
         } catch (error) {
             console.error('Logout error:', error);
-            toast.error('Failed to log out');
+            toast.error('Не удалось выйти');
         } finally {
             setIsLoading(false);
         }
@@ -41,7 +41,7 @@ const LogoutButton = () => {
             startIcon={<LogoutIcon />}
             style={{ margin: '0 10px' }}
         >
-            {isLoading ? 'Logging out...' : 'Logout'}
+            {isLoading ? 'Загрузка...' : 'Выйти'}
         </Button>
     );
 };

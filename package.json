@@ -30,6 +30,7 @@
         "postcss": "^8.5.3",
         "prisma": "^6.8.2",
         "ra-data-json-server": "^5.8.2",
+        "ra-i18n-polyglot": "^5.8.3",
         "react": "^19.0.0",
         "react-admin": "^5.8.2",
         "react-dom": "^19.0.0",

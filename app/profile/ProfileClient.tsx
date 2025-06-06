@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -12,6 +12,8 @@ import {
     FaCreditCard,
     FaMapMarkerAlt,
     FaSignOutAlt,
+    FaTrash,
+    FaPlus,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
@@ -49,22 +51,79 @@ export default function ProfileClient({ user }: ProfileClientProps) {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState('profile');
     const [editMode, setEditMode] = useState(false);
+    const [addresses, setAddresses] = useState<Address[]>(user.addresses || []);
+    const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
     const [formData, setFormData] = useState({
         name: user.name,
         surname: user.surname,
         email: user.email,
         phoneNumber: user.phoneNumber,
-        street: user.street,
-        house: user.house,
-        apartment: user.apartment,
     });
+
+    // Загружаем адреса пользователя при монтировании компонента
+    useEffect(() => {
+        fetchUserAddresses();
+    }, []);
+
+    // Функция для загрузки адресов пользователя
+    const fetchUserAddresses = async () => {
+        try {
+            setIsLoadingAddresses(true);
+            const response = await fetch('/api/users/addresses');
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user addresses');
+            }
+
+            const data = await response.json();
+            setAddresses(data.addresses || []);
+        } catch (error) {
+            console.error('Error fetching user addresses:', error);
+            toast.error('Не удалось загрузить адреса');
+        } finally {
+            setIsLoadingAddresses(false);
+        }
+    };
+
+    // Функция для удаления адреса
+    const handleDeleteAddress = async (addressId: number) => {
+        try {
+            const response = await fetch(`/api/users/addresses/${addressId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete address');
+            }
+
+            // Обновляем список адресов
+            setAddresses(
+                addresses.filter((address) => address.id !== addressId)
+            );
+            toast.success('Адрес успешно удален');
+        } catch (error) {
+            console.error('Error deleting address:', error);
+            toast.error('Не удалось удалить адрес');
+        }
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value,
-        });
+
+        // Для поля телефона допускаем только цифры и символ '+'
+        if (name === 'phoneNumber') {
+            // Фильтруем ввод, оставляя только разрешенные символы
+            const filteredValue = value.replace(/[^\d+]/g, '');
+            setFormData({
+                ...formData,
+                [name]: filteredValue,
+            });
+        } else {
+            setFormData({
+                ...formData,
+                [name]: value,
+            });
+        }
     };
 
     const validatePhoneNumber = (phone: string) => {
@@ -317,74 +376,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                     </div>
                                                 </div>
 
-                                                <div className='mb-6'>
-                                                    <h3 className='text-lg font-medium text-gray-900 mb-2'>
-                                                        Адрес доставки
-                                                    </h3>
-                                                    <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-                                                        <div className='md:col-span-2'>
-                                                            <label
-                                                                htmlFor='street'
-                                                                className='block text-sm font-medium text-gray-700 mb-1'
-                                                            >
-                                                                Улица
-                                                            </label>
-                                                            <input
-                                                                type='text'
-                                                                id='street'
-                                                                name='street'
-                                                                value={
-                                                                    formData.street
-                                                                }
-                                                                onChange={
-                                                                    handleChange
-                                                                }
-                                                                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label
-                                                                htmlFor='house'
-                                                                className='block text-sm font-medium text-gray-700 mb-1'
-                                                            >
-                                                                Дом
-                                                            </label>
-                                                            <input
-                                                                type='text'
-                                                                id='house'
-                                                                name='house'
-                                                                value={
-                                                                    formData.house
-                                                                }
-                                                                onChange={
-                                                                    handleChange
-                                                                }
-                                                                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label
-                                                                htmlFor='apartment'
-                                                                className='block text-sm font-medium text-gray-700 mb-1'
-                                                            >
-                                                                Квартира
-                                                            </label>
-                                                            <input
-                                                                type='text'
-                                                                id='apartment'
-                                                                name='apartment'
-                                                                value={
-                                                                    formData.apartment
-                                                                }
-                                                                onChange={
-                                                                    handleChange
-                                                                }
-                                                                className='w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500'
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
                                                 <div className='flex justify-end space-x-4'>
                                                     <button
                                                         type='button'
@@ -441,22 +432,89 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                     </div>
                                                 </div>
 
-                                                <div>
-                                                    <h3 className='text-sm font-medium text-gray-500 mb-2'>
-                                                        Адрес доставки
-                                                    </h3>
-                                                    {user.street ? (
-                                                        <p>
-                                                            {user.street},{' '}
-                                                            {user.house}
-                                                            {user.apartment
-                                                                ? `, кв. ${user.apartment}`
-                                                                : ''}
-                                                        </p>
+                                                <div className='mb-6'>
+                                                    <div className='flex justify-between items-center mb-3'>
+                                                        <h3 className='text-lg font-medium text-gray-900'>
+                                                            Адреса доставки
+                                                        </h3>
+                                                    </div>
+
+                                                    {isLoadingAddresses ? (
+                                                        <div className='flex justify-center my-4'>
+                                                            <div className='animate-spin h-6 w-6 border-2 border-red-600 rounded-full border-t-transparent'></div>
+                                                        </div>
+                                                    ) : addresses &&
+                                                      addresses.length > 0 ? (
+                                                        <div className='space-y-3'>
+                                                            {addresses.map(
+                                                                (address) => (
+                                                                    <div
+                                                                        key={
+                                                                            address.id
+                                                                        }
+                                                                        className='border border-gray-200 rounded-md p-3 flex justify-between items-start'
+                                                                    >
+                                                                        <div>
+                                                                            <p className='font-medium text-gray-800'>
+                                                                                {
+                                                                                    address.city
+                                                                                }
+                                                                                ,{' '}
+                                                                                {
+                                                                                    address.street
+                                                                                }
+                                                                                ,{' '}
+                                                                                {
+                                                                                    address.houseNumber
+                                                                                }
+                                                                            </p>
+                                                                            {(address.apartment ||
+                                                                                address.entrance ||
+                                                                                address.floor ||
+                                                                                address.intercom) && (
+                                                                                <p className='text-gray-600 text-sm mt-1'>
+                                                                                    {[
+                                                                                        address.apartment &&
+                                                                                            `Кв: ${address.apartment}`,
+                                                                                        address.entrance &&
+                                                                                            `Подъезд: ${address.entrance}`,
+                                                                                        address.floor &&
+                                                                                            `Этаж: ${address.floor}`,
+                                                                                        address.intercom &&
+                                                                                            `Домофон: ${address.intercom}`,
+                                                                                    ]
+                                                                                        .filter(
+                                                                                            Boolean
+                                                                                        )
+                                                                                        .join(
+                                                                                            ', '
+                                                                                        )}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleDeleteAddress(
+                                                                                    address.id
+                                                                                )
+                                                                            }
+                                                                            className='text-red-600 hover:text-red-800'
+                                                                            title='Удалить адрес'
+                                                                        >
+                                                                            <FaTrash />
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
                                                     ) : (
-                                                        <p className='text-gray-400'>
-                                                            Адрес не указан
-                                                        </p>
+                                                        <div className='text-center py-4 border border-gray-200 rounded-md'>
+                                                            <p className='text-gray-500'>
+                                                                У вас пока нет
+                                                                сохраненных
+                                                                адресов
+                                                            </p>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>

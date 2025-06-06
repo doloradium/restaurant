@@ -7,6 +7,7 @@ export async function GET() {
             select: {
                 id: true,
                 text: true,
+                rating: true,
                 createdAt: true,
                 item: {
                     select: {
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
             select: {
                 id: true,
                 text: true,
+                rating: true,
                 createdAt: true,
                 item: {
                     select: {

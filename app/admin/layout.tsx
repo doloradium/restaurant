@@ -7,6 +7,7 @@ import { CategoryList, CategoryEdit, CategoryCreate } from './categories';
 import { UserList, UserEdit, UserCreate } from './users';
 import { ReviewList, ReviewEdit, ReviewCreate } from './reviews';
 import { OrderList, OrderEdit, OrderCreate } from './orders';
+import { AddressList, AddressEdit, AddressCreate } from './addresses';
 import dynamic from 'next/dynamic';
 import CustomAdmin from './CustomAdmin';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ import PeopleIcon from '@mui/icons-material/People';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import HomeIcon from '@mui/icons-material/Home';
 
 // Import Delivery component
 import DeliveryManagement from './delivery';
@@ -56,6 +58,14 @@ export default function AdminLayout() {
                 create={UserCreate}
                 icon={PeopleIcon}
                 options={{ label: 'Пользователи' }}
+            />
+            <Resource
+                name='addresses'
+                list={AddressList}
+                edit={AddressEdit}
+                create={AddressCreate}
+                icon={HomeIcon}
+                options={{ label: 'Адреса' }}
             />
             <Resource
                 name='reviews'
