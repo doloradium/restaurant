@@ -36,15 +36,18 @@ interface Order {
     status: string;
     isPaid: boolean;
     isCompleted: boolean;
-    street: string | null;
-    house: string | null;
-    apartment: string | null;
     dateOrdered: string;
     user: {
         name: string;
         surname: string;
         phoneNumber: string | null;
     };
+    address?: {
+        street: string;
+        houseNumber: string;
+        apartment?: string | null;
+        city: string;
+    } | null;
 }
 
 interface Courier {
@@ -201,67 +204,99 @@ const DeliveryManagement = () => {
                 // Clear existing map objects
                 map.geoObjects.removeAll();
 
+                // Default Moscow coordinates to use as fallback
+                const defaultCoords = [55.755826, 37.6173];
+
                 // Process each order
                 for (const order of orders) {
-                    if (!order.street || !order.house) continue;
+                    if (
+                        !order.address ||
+                        !order.address.street ||
+                        !order.address.houseNumber
+                    )
+                        continue;
 
                     try {
-                        const address = `${order.street} ${order.house}`;
-                        const response = await fetch(
-                            `/api/yandex/geocode?address=${encodeURIComponent(
-                                address
-                            )}`
-                        );
-                        if (!response.ok)
-                            throw new Error(
-                                `Failed to geocode address: ${address}`
+                        const fullAddress = `${
+                            order.address.city || 'Москва'
+                        }, ${order.address.street} ${
+                            order.address.houseNumber
+                        }`;
+
+                        let coordinates;
+                        try {
+                            const response = await fetch(
+                                `/api/yandex/geocode?address=${encodeURIComponent(
+                                    fullAddress
+                                )}`
                             );
 
-                        const data = await response.json();
-                        if (data.coordinates && data.coordinates.length === 2) {
-                            const [lat, lng] = data.coordinates;
-
-                            // Create a marker
-                            const placemark = new window.ymaps.Placemark(
-                                [lat, lng],
-                                {
-                                    balloonContent: `
-                                        <strong>Order #${order.id}</strong><br/>
-                                        Customer: ${order.user.name} ${
-                                        order.user.surname
-                                    }<br/>
-                                        Address: ${order.street} ${
-                                        order.house
-                                    }${
-                                        order.apartment
-                                            ? `, apt ${order.apartment}`
-                                            : ''
-                                    }<br/>
-                                        Phone: ${
-                                            order.user.phoneNumber || 'N/A'
-                                        }<br/>
-                                        Ordered: ${new Date(
-                                            order.dateOrdered
-                                        ).toLocaleString()}
-                                    `,
-                                },
-                                {
-                                    preset: 'islands#redDotIcon',
-                                    iconColor: '#FF0000',
-                                }
+                            if (!response.ok) {
+                                console.error(
+                                    `Failed to geocode address: ${fullAddress}. Using default coordinates.`
+                                );
+                                coordinates = defaultCoords;
+                            } else {
+                                const data = await response.json();
+                                coordinates =
+                                    data.coordinates &&
+                                    data.coordinates.length === 2
+                                        ? data.coordinates
+                                        : defaultCoords;
+                            }
+                        } catch (error) {
+                            console.error(
+                                `Error during geocoding for address ${fullAddress}:`,
+                                error
                             );
-
-                            // Store marker reference
-                            newMarkers.push({
-                                id: newMarkers.length,
-                                coords: [lat, lng],
-                                orderId: order.id,
-                                isHighlighted: false,
-                            });
-
-                            // Add marker to clusterer
-                            clusterer.add(placemark);
+                            coordinates = defaultCoords;
                         }
+
+                        // Create a marker with either actual or fallback coordinates
+                        const [lat, lng] = coordinates;
+
+                        // Create a placemark
+                        const placemark = new window.ymaps.Placemark(
+                            [lat, lng],
+                            {
+                                balloonContent: `
+                                    <strong>Заказ #${order.id}</strong><br/>
+                                    Клиент: ${order.user.name} ${
+                                    order.user.surname
+                                }<br/>
+                                    Адрес: ${order.address.city || 'Москва'}, ${
+                                    order.address.street
+                                } ${order.address.houseNumber}${
+                                    order.address.apartment
+                                        ? `, кв. ${order.address.apartment}`
+                                        : ''
+                                }<br/>
+                                    Телефон: ${
+                                        order.user.phoneNumber || 'Нет'
+                                    }<br/>
+                                    Заказан: ${new Date(
+                                        order.dateOrdered
+                                    ).toLocaleString()}
+                                `,
+                            },
+                            {
+                                preset:
+                                    hoveredOrderId === order.id
+                                        ? 'islands#blueDotIcon'
+                                        : 'islands#redDotIcon',
+                            }
+                        );
+
+                        // Add marker to clusterer
+                        clusterer.add(placemark);
+
+                        // Store marker reference
+                        newMarkers.push({
+                            id: newMarkers.length,
+                            coords: [lat, lng],
+                            orderId: order.id,
+                            isHighlighted: hoveredOrderId === order.id,
+                        });
                     } catch (error) {
                         console.error(
                             `Error geocoding order ${order.id}:`,
@@ -287,7 +322,24 @@ const DeliveryManagement = () => {
         };
 
         geocodeAddresses();
-    }, [map, orders]);
+    }, [map, orders, hoveredOrderId]);
+
+    // Update marker highlights when hovered order changes
+    useEffect(() => {
+        if (!map || markers.length === 0) return;
+
+        // Recreate map markers with updated highlights
+        const updateMarkerHighlights = async () => {
+            try {
+                // This would normally update existing markers, but for simplicity
+                // we're recreating them all in the geocodeAddresses effect
+            } catch (error) {
+                console.error('Error updating marker highlights:', error);
+            }
+        };
+
+        updateMarkerHighlights();
+    }, [hoveredOrderId, map, markers]);
 
     // Handle assigning courier to an order
     const assignCourier = async (orderId: number, courierId: number) => {
@@ -360,7 +412,7 @@ const DeliveryManagement = () => {
     // Format date in a readable way
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
+        return date.toLocaleString('ru-RU', {
             day: 'numeric',
             month: 'short',
             hour: '2-digit',
@@ -381,12 +433,12 @@ const DeliveryManagement = () => {
     return (
         <MantineProvider>
             <div>
-                <Title title='Delivery Management' />
+                <Title title='Управление доставкой' />
 
                 {error && (
                     <Alert
                         color='red'
-                        title='Error'
+                        title='Ошибка'
                         mb={20}
                         withCloseButton
                         onClose={() => setError(null)}
@@ -416,12 +468,11 @@ const DeliveryManagement = () => {
                                         color='#ff6b6b'
                                     />
                                     <p className='mt-4 text-lg font-medium text-gray-700'>
-                                        Maps functionality is unavailable
+                                        Сервис карт недоступен
                                     </p>
                                     <p className='text-sm text-gray-500 text-center mt-2'>
-                                        The delivery map service could not be
-                                        loaded. You can still manage orders
-                                        below.
+                                        Не удалось загрузить карту доставки. Вы
+                                        все еще можете управлять заказами ниже.
                                     </p>
                                 </div>
                             ) : (
@@ -447,7 +498,7 @@ const DeliveryManagement = () => {
                         <Card shadow='sm' p='lg' radius='md' withBorder>
                             <Card.Section className='p-4 bg-gray-100 border-b border-gray-200'>
                                 <Text className='text-lg font-bold'>
-                                    Orders Ready for Delivery
+                                    Заказы готовые к доставке
                                 </Text>
                             </Card.Section>
 
@@ -458,7 +509,7 @@ const DeliveryManagement = () => {
                             ) : orders.length === 0 ? (
                                 <div className='py-8 text-center'>
                                     <Text color='dimmed'>
-                                        No orders ready for delivery
+                                        Нет заказов готовых к доставке
                                     </Text>
                                 </div>
                             ) : (
@@ -487,7 +538,7 @@ const DeliveryManagement = () => {
                                                     color='blue'
                                                     variant='filled'
                                                 >
-                                                    Order #{order.id}
+                                                    Заказ #{order.id}
                                                 </Badge>
                                                 <Text size='xs' color='dimmed'>
                                                     {formatDate(
@@ -533,9 +584,23 @@ const DeliveryManagement = () => {
                                             <Group className='mb-3'>
                                                 <IconHomeEdit size={14} />
                                                 <Text size='sm'>
-                                                    {order.street} {order.house}
-                                                    {order.apartment &&
-                                                        `, apt ${order.apartment}`}
+                                                    {order.address ? (
+                                                        <>
+                                                            {
+                                                                order.address
+                                                                    .street
+                                                            }{' '}
+                                                            {
+                                                                order.address
+                                                                    .houseNumber
+                                                            }
+                                                            {order.address
+                                                                .apartment &&
+                                                                `, кв. ${order.address.apartment}`}
+                                                        </>
+                                                    ) : (
+                                                        'Адрес не указан'
+                                                    )}
                                                 </Text>
                                             </Group>
 
@@ -569,8 +634,8 @@ const DeliveryManagement = () => {
                                                                               c.id ===
                                                                               order.courierId
                                                                       )?.name ||
-                                                                      'Unknown'
-                                                                    : 'Assign courier'}
+                                                                      'Неизвестен'
+                                                                    : 'Назначить курьера'}
                                                             </Button>
                                                         </Menu.Target>
                                                         <Menu.Dropdown>
@@ -583,7 +648,8 @@ const DeliveryManagement = () => {
                                                                 }
                                                                 color='red'
                                                             >
-                                                                Unassign
+                                                                Отменить
+                                                                назначение
                                                             </Menu.Item>
                                                             <Menu.Divider />
                                                             {couriers.map(
@@ -631,7 +697,7 @@ const DeliveryManagement = () => {
                                                         dispatchOrder(order.id)
                                                     }
                                                 >
-                                                    Dispatch
+                                                    Отправить
                                                 </Button>
                                             </div>
                                         </Card>

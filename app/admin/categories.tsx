@@ -17,10 +17,14 @@ import {
 } from 'react-admin';
 
 export const CategoryList = () => (
-    <List>
-        <Datagrid rowClick='edit' bulkActionButtons={<BulkDeleteButton />}>
-            <TextField source='id' label='ID' />
-            <TextField source='name' label='Название' />
+    <List sort={{ field: 'id', order: 'ASC' }}>
+        <Datagrid
+            rowClick='edit'
+            bulkActionButtons={<BulkDeleteButton />}
+            sort={{ field: 'id', order: 'ASC' }}
+        >
+            <TextField source='id' label='ID' sortable={false} />
+            <TextField source='name' label='Название' sortable={false} />
         </Datagrid>
     </List>
 );

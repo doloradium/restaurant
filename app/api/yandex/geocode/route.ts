@@ -13,10 +13,16 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Use a geocoding service API key from environment variables
-        const apiKey = process.env.YANDEX_API_KEY;
+        // Try to get API key from correct environment variable
+        const apiKey = process.env.GEOCODER_KEY;
+
+        console.log(
+            'Using GEOCODER_KEY (first few chars):',
+            apiKey ? apiKey.substring(0, 5) + '...' : 'undefined'
+        );
+
         if (!apiKey) {
-            console.error('Missing Yandex API key');
+            console.error('Missing GEOCODER_KEY');
             return NextResponse.json(
                 { error: 'Geocoding service configuration error' },
                 { status: 500 }
@@ -27,9 +33,14 @@ export async function GET(req: NextRequest) {
         const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&format=json&geocode=${encodeURIComponent(
             address
         )}`;
+
+        console.log('Calling geocoding API with address:', address);
         const response = await fetch(url);
 
         if (!response.ok) {
+            console.error(
+                `Geocoding API error: ${response.status} ${response.statusText}`
+            );
             throw new Error(
                 `Geocoding API responded with status: ${response.status}`
             );
@@ -41,17 +52,23 @@ export async function GET(req: NextRequest) {
         const geoObject =
             data.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
         if (!geoObject) {
+            console.warn('No geo objects found for address:', address);
             return NextResponse.json({ coordinates: null });
         }
 
         // Yandex returns coordinates as "longitude,latitude" so we need to reverse them
         const pointStr = geoObject.Point?.pos;
         if (!pointStr) {
+            console.warn(
+                'No coordinates found in geo object for address:',
+                address
+            );
             return NextResponse.json({ coordinates: null });
         }
 
         // Split the point string and return as [latitude, longitude]
         const [lng, lat] = pointStr.split(' ').map(parseFloat);
+        console.log(`Geocoded address: ${address} -> [${lat}, ${lng}]`);
 
         return NextResponse.json({
             coordinates: [lat, lng],

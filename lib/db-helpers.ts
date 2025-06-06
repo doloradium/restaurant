@@ -139,13 +139,30 @@ export const dbHelpers = {
                                 ...order,
                                 address:
                                     addresses.find(
-                                        (addr) => addr.id === order.addressId
+                                        (addr: any) =>
+                                            addr.id === order.addressId
                                     ) || null,
                             }));
                         }
                     }
                     return orders;
                 }
+                throw error;
+            }
+        },
+        findUnique: async (params: any) => {
+            try {
+                return await prisma.order.findUnique(params);
+            } catch (error) {
+                console.error('Error finding order:', error);
+                throw error;
+            }
+        },
+        update: async (params: any) => {
+            try {
+                return await prisma.order.update(params);
+            } catch (error) {
+                console.error('Error updating order:', error);
                 throw error;
             }
         },

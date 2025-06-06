@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { FaCreditCard, FaLock } from 'react-icons/fa';
+import { FaCreditCard, FaMoneyBillWave } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { useCart } from '../CartProvider';
 import { useDelivery } from '../DeliveryProvider';
@@ -20,103 +20,147 @@ const CheckoutPage = () => {
     const [checkoutStep, setCheckoutStep] = useState<
         'address' | 'time' | 'payment'
     >(deliveryAddress ? (deliveryTime ? 'payment' : 'time') : 'address');
+    const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'CASH'>('CARD');
 
-    const CheckoutSchema = Yup.object().shape({
-        cardNumber: Yup.string()
-            .matches(/^\d{16}$/, 'Номер карты должен содержать 16 цифр')
-            .required('Введите номер карты'),
-        expiryDate: Yup.string()
-            .matches(
-                /^(0[1-9]|1[0-2])\/\d{2}$/,
-                'Дата должна быть в формате ММ/ГГ'
-            )
-            .required('Введите срок действия'),
-        cvv: Yup.string()
-            .matches(/^\d{3,4}$/, 'CVV должен содержать 3 или 4 цифры')
-            .required('Введите CVV'),
-        name: Yup.string().required('Введите имя владельца карты'),
-    });
+    const handlePaymentMethodChange = (method: 'CARD' | 'CASH') => {
+        setPaymentMethod(method);
+    };
 
-    const formik = useFormik({
-        initialValues: {
-            cardNumber: '',
-            expiryDate: '',
-            cvv: '',
-            name: '',
-        },
-        validationSchema: CheckoutSchema,
-        onSubmit: async (values) => {
-            if (!deliveryAddress || !deliveryTime) {
-                toast.error('Please select delivery address and time');
+    const handleSubmitOrder = async () => {
+        if (isProcessing) return; // Предотвращаем повторные нажатия
+
+        if (!deliveryAddress || !deliveryTime) {
+            toast.error('Выберите адрес и время доставки');
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            // Get current user ID
+            const userResponse = await fetch('/api/auth/me');
+            const userData = await userResponse.json();
+
+            if (!userData.user) {
+                toast.error('Вы должны авторизоваться для оформления заказа');
+                router.push('/login');
                 return;
             }
 
-            setIsProcessing(true);
-            try {
-                // Get current user ID
-                const userResponse = await fetch('/api/auth/me');
-                const userData = await userResponse.json();
-
-                if (!userData.user) {
-                    toast.error('You must be logged in to place an order');
-                    router.push('/login');
-                    return;
-                }
-
-                // Update user address if needed
-                if (deliveryAddress) {
-                    await fetch('/api/users/address', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            userId: userData.user.id,
-                            street: deliveryAddress.street,
-                            house: deliveryAddress.houseNumber,
-                            apartment: deliveryAddress.apartment,
-                        }),
-                    });
-                }
-
-                // Create order in database
-                const orderResponse = await fetch('/api/orders', {
+            // Создаем запись адреса, если его еще нет в базе
+            let addressResponse;
+            if (deliveryAddress) {
+                addressResponse = await fetch('/api/addresses', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: userData.user.id,
-                        items: cart.map((item) => ({
-                            itemId: item.id,
-                            quantity: item.quantity,
-                        })),
-                        paymentType: 'CARD', // Could make this configurable
-                        status: 'PENDING',
+                        city: deliveryAddress.city,
+                        street: deliveryAddress.street,
+                        houseNumber: deliveryAddress.houseNumber,
+                        apartment: deliveryAddress.apartment,
+                        entrance: deliveryAddress.entrance,
+                        floor: deliveryAddress.floor,
+                        intercom: deliveryAddress.intercom,
                     }),
                 });
 
-                if (!orderResponse.ok) {
-                    const errorData = await orderResponse.json();
+                if (!addressResponse.ok) {
+                    throw new Error('Не удалось сохранить адрес доставки');
+                }
+            }
+
+            const addressData = addressResponse
+                ? await addressResponse.json()
+                : null;
+
+            // Преобразуем объект времени доставки в строку ISO
+            const deliveryDateTime = deliveryTime
+                ? new Date(
+                      deliveryTime.date.getFullYear(),
+                      deliveryTime.date.getMonth(),
+                      deliveryTime.date.getDate(),
+                      parseInt(deliveryTime.timeSlot.split(':')[0]),
+                      parseInt(deliveryTime.timeSlot.split(':')[1])
+                  ).toISOString()
+                : null;
+
+            // Create order in database
+            const orderResponse = await fetch('/api/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: userData.user.id,
+                    items: cart.map((item) => ({
+                        itemId: item.id,
+                        quantity: item.quantity,
+                    })),
+                    addressId: addressData.id,
+                    deliveryTime: deliveryDateTime,
+                    paymentType: paymentMethod,
+                    status: 'PENDING',
+                    isPaid: paymentMethod === 'CASH', // Если оплата наличными, заказ не требует онлайн-оплаты
+                }),
+            });
+
+            if (!orderResponse.ok) {
+                const errorData = await orderResponse.json();
+                throw new Error(errorData.error || 'Failed to create order');
+            }
+
+            // Get the created order
+            const orderData = await orderResponse.json();
+            console.log('Order created:', orderData);
+
+            if (paymentMethod === 'CASH') {
+                // Если выбрана оплата наличными, просто перенаправляем на страницу подтверждения
+                clearCart();
+                router.push('/confirmation');
+                toast.success('Заказ успешно оформлен!');
+            } else {
+                // Если выбрана оплата картой, создаем платеж в Юкассе
+                const paymentResponse = await fetch(
+                    '/api/payment/yookassa/create',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            amount: totalPrice,
+                            returnUrl: `${window.location.origin}/payment/success?orderId=${orderData.id}`,
+                            description: `Заказ №${orderData.id}`,
+                            metadata: {
+                                orderId: orderData.id,
+                            },
+                        }),
+                    }
+                );
+
+                if (!paymentResponse.ok) {
+                    const errorData = await paymentResponse.json();
                     throw new Error(
-                        errorData.error || 'Failed to create order'
+                        errorData.error || 'Не удалось создать платеж'
                     );
                 }
 
-                // Get the created order
-                const orderData = await orderResponse.json();
-                console.log('Order created:', orderData);
+                const paymentData = await paymentResponse.json();
 
-                // Success
+                // Очищаем корзину и перенаправляем на страницу оплаты Юкассы
                 clearCart();
-                router.push('/confirmation');
-                toast.success('Order placed successfully!');
-            } catch (error) {
-                console.error('Error processing order:', error);
-                toast.error('Failed to process order. Please try again.');
-            } finally {
-                setIsProcessing(false);
+                window.location.href =
+                    paymentData.confirmation.confirmation_url;
             }
-        },
-    });
+        } catch (error) {
+            console.error('Error processing order:', error);
+            toast.error(
+                'Не удалось обработать заказ. Пожалуйста, попробуйте еще раз.'
+            );
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
     if (cart.length === 0) {
         return (
@@ -240,110 +284,86 @@ const CheckoutPage = () => {
                     </div>
                 )}
 
-                {/* Payment Information */}
+                {/* Payment Method Selection */}
                 {checkoutStep === 'payment' && (
-                    <form onSubmit={formik.handleSubmit} className='space-y-8'>
+                    <div className='space-y-8'>
                         <div className='bg-white shadow rounded-lg p-6'>
-                            <h3 className='text-lg font-medium text-gray-900 mb-4 flex items-center'>
-                                <FaCreditCard className='mr-2 text-red-600' />
-                                Платежная информация
+                            <h3 className='text-lg font-medium text-gray-900 mb-6'>
+                                Способ оплаты
                             </h3>
 
-                            <div className='grid grid-cols-1 gap-6'>
-                                <div>
-                                    <label
-                                        htmlFor='name'
-                                        className='block text-sm font-medium text-gray-700 mb-1'
+                            {/* Payment Method Selection */}
+                            <div className='space-y-4 mb-6'>
+                                <div
+                                    className={`p-4 border rounded-lg cursor-pointer flex items-center ${
+                                        paymentMethod === 'CARD'
+                                            ? 'border-red-600 bg-red-50'
+                                            : 'border-gray-300'
+                                    }`}
+                                    onClick={() =>
+                                        handlePaymentMethodChange('CARD')
+                                    }
+                                >
+                                    <div
+                                        className='w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 shrink-0'
+                                        style={{
+                                            borderColor:
+                                                paymentMethod === 'CARD'
+                                                    ? '#dc2626'
+                                                    : '#d1d5db',
+                                        }}
                                     >
-                                        Имя на карте
-                                    </label>
-                                    <input
-                                        type='text'
-                                        id='name'
-                                        {...formik.getFieldProps('name')}
-                                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
-                                    />
-                                    {formik.touched.name &&
-                                        formik.errors.name && (
-                                            <div className='text-red-500 text-sm mt-1'>
-                                                {formik.errors.name}
-                                            </div>
+                                        {paymentMethod === 'CARD' && (
+                                            <div className='w-3 h-3 bg-red-600 rounded-full'></div>
                                         )}
-                                </div>
-
-                                <div>
-                                    <label
-                                        htmlFor='cardNumber'
-                                        className='block text-sm font-medium text-gray-700 mb-1'
-                                    >
-                                        Номер карты
-                                    </label>
-                                    <input
-                                        type='text'
-                                        id='cardNumber'
-                                        placeholder='1234 5678 9012 3456'
-                                        {...formik.getFieldProps('cardNumber')}
-                                        className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
-                                    />
-                                    {formik.touched.cardNumber &&
-                                        formik.errors.cardNumber && (
-                                            <div className='text-red-500 text-sm mt-1'>
-                                                {formik.errors.cardNumber}
-                                            </div>
-                                        )}
-                                </div>
-
-                                <div className='grid grid-cols-2 gap-4'>
-                                    <div>
-                                        <label
-                                            htmlFor='expiryDate'
-                                            className='block text-sm font-medium text-gray-700 mb-1'
-                                        >
-                                            Срок действия
-                                        </label>
-                                        <input
-                                            type='text'
-                                            id='expiryDate'
-                                            placeholder='MM/YY'
-                                            {...formik.getFieldProps(
-                                                'expiryDate'
-                                            )}
-                                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
-                                        />
-                                        {formik.touched.expiryDate &&
-                                            formik.errors.expiryDate && (
-                                                <div className='text-red-500 text-sm mt-1'>
-                                                    {formik.errors.expiryDate}
-                                                </div>
-                                            )}
                                     </div>
-
-                                    <div>
-                                        <label
-                                            htmlFor='cvv'
-                                            className='block text-sm font-medium text-gray-700 mb-1'
-                                        >
-                                            CVV
-                                        </label>
-                                        <input
-                                            type='text'
-                                            id='cvv'
-                                            placeholder='123'
-                                            {...formik.getFieldProps('cvv')}
-                                            className='w-full p-3 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500'
-                                        />
-                                        {formik.touched.cvv &&
-                                            formik.errors.cvv && (
-                                                <div className='text-red-500 text-sm mt-1'>
-                                                    {formik.errors.cvv}
-                                                </div>
-                                            )}
+                                    <div className='flex items-center'>
+                                        <FaCreditCard className='text-xl mr-2 text-red-600' />
+                                        <div>
+                                            <p className='font-medium'>
+                                                Банковская карта
+                                            </p>
+                                            <p className='text-sm text-gray-500'>
+                                                Онлайн-оплата через Юкассу
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className='text-sm text-gray-500 flex items-center'>
-                                    <FaLock className='mr-2' />
-                                    Ваши платежные данные защищены
+                                <div
+                                    className={`p-4 border rounded-lg cursor-pointer flex items-center ${
+                                        paymentMethod === 'CASH'
+                                            ? 'border-red-600 bg-red-50'
+                                            : 'border-gray-300'
+                                    }`}
+                                    onClick={() =>
+                                        handlePaymentMethodChange('CASH')
+                                    }
+                                >
+                                    <div
+                                        className='w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 shrink-0'
+                                        style={{
+                                            borderColor:
+                                                paymentMethod === 'CASH'
+                                                    ? '#dc2626'
+                                                    : '#d1d5db',
+                                        }}
+                                    >
+                                        {paymentMethod === 'CASH' && (
+                                            <div className='w-3 h-3 bg-red-600 rounded-full'></div>
+                                        )}
+                                    </div>
+                                    <div className='flex items-center'>
+                                        <FaMoneyBillWave className='text-xl mr-2 text-green-600' />
+                                        <div>
+                                            <p className='font-medium'>
+                                                Наличными при получении
+                                            </p>
+                                            <p className='text-sm text-gray-500'>
+                                                Оплата курьеру
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -358,20 +378,22 @@ const CheckoutPage = () => {
                             </button>
 
                             <button
-                                type='submit'
-                                disabled={isProcessing || !formik.isValid}
+                                onClick={handleSubmitOrder}
+                                disabled={isProcessing}
                                 className={`px-8 py-3 rounded-md font-medium transition-colors ${
-                                    isProcessing || !formik.isValid
+                                    isProcessing
                                         ? 'bg-gray-400 text-gray-100 cursor-not-allowed'
                                         : 'bg-red-600 text-white hover:bg-red-700'
                                 }`}
                             >
                                 {isProcessing
                                     ? 'Оформление...'
+                                    : paymentMethod === 'CARD'
+                                    ? 'Оплатить онлайн'
                                     : 'Оформить заказ'}
                             </button>
                         </div>
-                    </form>
+                    </div>
                 )}
             </div>
         </div>

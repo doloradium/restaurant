@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
     try {
-        // Get API key from environment variables - use the correct env variable name
+        // Get API key from correct environment variable
         const apiKey = process.env.GEOSUGGEST_KEY;
+
+        console.log('Using GEOSUGGEST_KEY for map API');
 
         if (!apiKey) {
             console.error('Missing Yandex API key (GEOSUGGEST_KEY)');

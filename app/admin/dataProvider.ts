@@ -131,6 +131,8 @@ export const dataProvider: DataProvider = {
                 // These fields cause issues with Prisma update
                 delete cleanData.user;
                 delete cleanData.orderItems;
+                delete cleanData.courier;
+                delete cleanData.address;
                 delete cleanData.id; // Don't include ID in the update payload
 
                 // Make sure dates are properly formatted
@@ -155,6 +157,23 @@ export const dataProvider: DataProvider = {
                 ) {
                     cleanData.courierId = parseInt(cleanData.courierId);
                 }
+
+                // Удаляем все поля, которые могут вызвать проблемы при обновлении
+                // Оставляем только безопасные поля
+                const safeFields = [
+                    'status',
+                    'isPaid',
+                    'isCompleted',
+                    'paymentType',
+                    'courierId',
+                    'dateArrived',
+                ];
+
+                Object.keys(cleanData).forEach((key) => {
+                    if (!safeFields.includes(key)) {
+                        delete cleanData[key];
+                    }
+                });
             } else if (resource === 'items') {
                 // Clean item-specific data
                 delete cleanData.category;

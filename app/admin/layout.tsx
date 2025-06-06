@@ -6,7 +6,7 @@ import { ItemList, ItemEdit, ItemCreate } from './items';
 import { CategoryList, CategoryEdit, CategoryCreate } from './categories';
 import { UserList, UserEdit, UserCreate } from './users';
 import { ReviewList, ReviewEdit, ReviewCreate } from './reviews';
-import { OrderList, OrderEdit, OrderCreate } from './orders';
+import { OrderList, OrderEdit } from './orders';
 import { AddressList, AddressEdit, AddressCreate } from './addresses';
 import dynamic from 'next/dynamic';
 import CustomAdmin from './CustomAdmin';
@@ -29,6 +29,16 @@ import DeliveryManagement from './delivery';
 const AdminComponent = dynamic(() => Promise.resolve(CustomAdmin), {
     ssr: false,
 });
+
+const RestaurantIcon = dynamic(() =>
+    import('@mui/icons-material/Restaurant').then((mod) => mod.default)
+);
+const PersonIcon = dynamic(() =>
+    import('@mui/icons-material/Person').then((mod) => mod.default)
+);
+const StarIcon = dynamic(() =>
+    import('@mui/icons-material/Star').then((mod) => mod.default)
+);
 
 export default function AdminLayout() {
     const pathname = usePathname();
@@ -79,7 +89,6 @@ export default function AdminLayout() {
                 name='orders'
                 list={OrderList}
                 edit={OrderEdit}
-                create={OrderCreate}
                 icon={ShoppingCartIcon}
                 options={{ label: 'Заказы' }}
             />
@@ -87,7 +96,7 @@ export default function AdminLayout() {
                 name='delivery'
                 list={DeliveryManagement}
                 icon={LocalShippingIcon}
-                options={{ label: 'Управление доставкой' }}
+                options={{ label: 'Доставка' }}
             />
             <nav className='mb-6 bg-white shadow'>
                 <div className='container mx-auto px-6 py-3'>
