@@ -30,6 +30,7 @@ const CustomAdmin = ({ children, dataProvider }: any) => {
             dataProvider={dataProvider}
             i18nProvider={i18nProvider}
             defaultTheme='light'
+            darkTheme={null}
         >
             {children}
         </Admin>

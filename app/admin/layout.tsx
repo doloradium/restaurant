@@ -1,6 +1,6 @@
 'use client';
 
-import { Resource } from 'react-admin';
+import { defaultLightTheme, Resource } from 'react-admin';
 import { dataProvider } from './dataProvider';
 import { ItemList, ItemEdit, ItemCreate } from './items';
 import { CategoryList, CategoryEdit, CategoryCreate } from './categories';
@@ -40,11 +40,17 @@ const StarIcon = dynamic(() =>
     import('@mui/icons-material/Star').then((mod) => mod.default)
 );
 
+const lightTheme = defaultLightTheme;
+
 export default function AdminLayout() {
     const pathname = usePathname();
 
     return (
-        <AdminComponent dataProvider={dataProvider}>
+        <AdminComponent
+            lightTheme={lightTheme}
+            darkTheme={null}
+            dataProvider={dataProvider}
+        >
             <Resource
                 name='items'
                 list={ItemList}

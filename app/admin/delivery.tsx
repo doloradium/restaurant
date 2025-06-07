@@ -14,6 +14,7 @@ import {
     Avatar,
     Text,
     Group,
+    Select,
 } from '@mantine/core';
 import {
     IconMapPin,
@@ -37,6 +38,7 @@ interface Order {
     isPaid: boolean;
     isCompleted: boolean;
     dateOrdered: string;
+    deliveryTime: string;
     user: {
         name: string;
         surname: string;
@@ -61,16 +63,14 @@ interface Marker {
     coords: [number, number];
     orderId: number;
     isHighlighted: boolean;
+    placemark?: any; // Reference to the Yandex Maps placemark object
 }
 
-// Add this interface to be compatible with AddressSelection.tsx approach
-interface Window {
-    ymaps: {
-        Map: any;
-        Placemark: any;
-        Clusterer: any;
-        geocode: (address: string) => Promise<any>;
-    };
+// Declare the window ymaps object for TypeScript
+declare global {
+    interface Window {
+        ymaps: any; // Use any type for ymaps to avoid TypeScript errors
+    }
 }
 
 const DeliveryManagement = () => {
@@ -83,6 +83,8 @@ const DeliveryManagement = () => {
     const [map, setMap] = useState<any>(null);
     const [markers, setMarkers] = useState<Marker[]>([]);
     const [hoveredOrderId, setHoveredOrderId] = useState<number | null>(null);
+    const [clickedOrderId, setClickedOrderId] = useState<number | null>(null);
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
     const [scriptUrl, setScriptUrl] = useState<string>('');
     const [isYandexReady, setIsYandexReady] = useState(false);
     const [isLoadingScript, setIsLoadingScript] = useState(true);
@@ -130,6 +132,80 @@ const DeliveryManagement = () => {
                         controls: ['zoomControl'],
                     });
 
+                    // Add a global function for debugging balloon clicks
+                    window.debugSelectOrder = function (orderId) {
+                        console.log(
+                            'Debug: Button clicked for order ID:',
+                            orderId
+                        );
+                        if (window.lastClickedTarget) {
+                            console.log(
+                                'Debug: Last clicked target:',
+                                window.lastClickedTarget
+                            );
+                        }
+
+                        // Try to select the order through the React state
+                        if (typeof window.reactSelectOrder === 'function') {
+                            window.reactSelectOrder(orderId);
+                        }
+                    };
+
+                    // Expose the React state setter for debugging
+                    window.reactSelectOrder = function (orderId) {
+                        console.log(
+                            'Debug: Calling React state setters for order ID:',
+                            orderId
+                        );
+                        setSelectedOrderId(orderId);
+                        setClickedOrderId(orderId);
+
+                        // Try to center map and close balloons
+                        try {
+                            if (yandexMap && yandexMap.balloon) {
+                                yandexMap.balloon.close();
+                                console.log('Debug: Balloon closed');
+                            }
+                        } catch (e) {
+                            console.error('Debug: Error closing balloon:', e);
+                        }
+                    };
+
+                    // Setup click listener for the entire map to catch balloon button clicks
+                    yandexMap.events.add('click', function (e: any) {
+                        // Get the target element that was clicked
+                        const target = e.get('domEvent').originalEvent.target;
+
+                        // Store the last clicked target for debugging
+                        window.lastClickedTarget = target;
+                        console.log('Debug: Map click detected', target);
+
+                        // Check if the clicked element is our button
+                        if (
+                            target.classList &&
+                            target.classList.contains('select-order-btn')
+                        ) {
+                            console.log('Debug: Button element clicked');
+                            const orderId = parseInt(
+                                target.getAttribute('data-order-id'),
+                                10
+                            );
+                            console.log(
+                                'Debug: Order ID from button:',
+                                orderId
+                            );
+
+                            if (!isNaN(orderId)) {
+                                // Select the order and close balloon
+                                console.log(
+                                    'Debug: Setting selected order to:',
+                                    orderId
+                                );
+                                window.reactSelectOrder(orderId);
+                            }
+                        }
+                    });
+
                     setMap(yandexMap);
                 } catch (error) {
                     console.error('Error initializing Yandex Map:', error);
@@ -163,6 +239,9 @@ const DeliveryManagement = () => {
                 if (!ordersResponse.ok)
                     throw new Error('Failed to fetch orders');
                 const ordersData = await ordersResponse.json();
+
+                console.log('Fetched orders data:', ordersData);
+
                 setOrders(ordersData);
 
                 // Fetch couriers
@@ -184,21 +263,28 @@ const DeliveryManagement = () => {
         fetchData();
     }, []);
 
-    // Geocode addresses and create markers when orders or map changes
+    // Create markers only when orders or map change, not when hover state changes
     useEffect(() => {
         if (!map || orders.length === 0 || mapError) return;
 
-        const geocodeAddresses = async () => {
+        const createMarkers = async () => {
             const newMarkers: Marker[] = [];
 
             try {
                 // Create a clusterer for the map
                 const clusterer = new window.ymaps.Clusterer({
-                    preset: 'islands#redClusterIcons',
+                    preset: 'islands#blueClusterIcons',
                     groupByCoordinates: false,
                     clusterDisableClickZoom: true,
                     clusterHideIconOnBalloonOpen: false,
                     geoObjectHideIconOnBalloonOpen: false,
+                    // Enable balloons for clusters
+                    openBalloonOnClick: true,
+                    // Custom layout for cluster balloon
+                    clusterBalloonContentLayout: 'cluster#balloonCarousel',
+                    // Configure balloon options
+                    clusterBalloonPagerSize: 5,
+                    clusterBalloonPagerType: 'marker',
                 });
 
                 // Clear existing map objects
@@ -255,37 +341,59 @@ const DeliveryManagement = () => {
                         // Create a marker with either actual or fallback coordinates
                         const [lat, lng] = coordinates;
 
-                        // Create a placemark
+                        // Create a placemark with HTML button for selection
                         const placemark = new window.ymaps.Placemark(
                             [lat, lng],
                             {
-                                balloonContent: `
-                                    <strong>Заказ #${order.id}</strong><br/>
-                                    Клиент: ${order.user.name} ${
-                                    order.user.surname
-                                }<br/>
-                                    Адрес: ${order.address.city || 'Москва'}, ${
-                                    order.address.street
-                                } ${order.address.houseNumber}${
+                                orderId: order.id,
+                                balloonContentHeader: `Заказ #${order.id}`,
+                                balloonContentBody: `
+                                    <div class="cluster-balloon-item">
+                                        <p><strong>Клиент:</strong> ${
+                                            order.user.name
+                                        } ${order.user.surname}</p>
+                                        <p><strong>Адрес:</strong> ${
+                                            order.address.city || 'Москва'
+                                        }, ${order.address.street} ${
+                                    order.address.houseNumber
+                                }${
                                     order.address.apartment
                                         ? `, кв. ${order.address.apartment}`
                                         : ''
-                                }<br/>
-                                    Телефон: ${
-                                        order.user.phoneNumber || 'Нет'
-                                    }<br/>
-                                    Заказан: ${new Date(
-                                        order.dateOrdered
-                                    ).toLocaleString()}
+                                }</p>
+                                        <a href="javascript:void(0)" 
+                                           onclick="console.log('Button clicked'); window.debugSelectOrder(${
+                                               order.id
+                                           }); return false;"
+                                           class="select-order-btn" 
+                                           data-order-id="${order.id}" 
+                                           style="display: inline-block; background-color: #4a7aff; color: white; padding: 5px 10px; 
+                                               border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; text-decoration: none;">
+                                           Выбрать заказ
+                                        </a>
+                                    </div>
                                 `,
+                                balloonContentFooter: `Доставка: ${
+                                    formatDate(order.deliveryTime) ||
+                                    'Время не указано'
+                                }`,
                             },
                             {
                                 preset:
-                                    hoveredOrderId === order.id
-                                        ? 'islands#blueDotIcon'
-                                        : 'islands#redDotIcon',
+                                    hoveredOrderId === order.id ||
+                                    selectedOrderId === order.id
+                                        ? 'islands#redDotIcon'
+                                        : 'islands#blueDotIcon',
+                                // Individual markers don't show balloons
+                                openBalloonOnClick: false,
                             }
                         );
+
+                        // Add click handler to select the order directly when clicking the marker
+                        placemark.events.add('click', () => {
+                            setSelectedOrderId(order.id);
+                            setClickedOrderId(order.id);
+                        });
 
                         // Add marker to clusterer
                         clusterer.add(placemark);
@@ -296,6 +404,7 @@ const DeliveryManagement = () => {
                             coords: [lat, lng],
                             orderId: order.id,
                             isHighlighted: hoveredOrderId === order.id,
+                            placemark: placemark,
                         });
                     } catch (error) {
                         console.error(
@@ -309,8 +418,8 @@ const DeliveryManagement = () => {
                 map.geoObjects.add(clusterer);
                 setMarkers(newMarkers);
 
-                // Auto-fit bounds if markers exist
-                if (newMarkers.length > 0) {
+                // Only set initial bounds once when the map is first loaded
+                if (newMarkers.length > 0 && markers.length === 0) {
                     map.setBounds(clusterer.getBounds(), {
                         checkZoomRange: true,
                     });
@@ -321,25 +430,44 @@ const DeliveryManagement = () => {
             }
         };
 
-        geocodeAddresses();
-    }, [map, orders, hoveredOrderId]);
+        createMarkers();
+    }, [map, orders]);
 
-    // Update marker highlights when hovered order changes
+    // Update marker colors when hover or selection state changes
     useEffect(() => {
         if (!map || markers.length === 0) return;
 
-        // Recreate map markers with updated highlights
-        const updateMarkerHighlights = async () => {
-            try {
-                // This would normally update existing markers, but for simplicity
-                // we're recreating them all in the geocodeAddresses effect
-            } catch (error) {
-                console.error('Error updating marker highlights:', error);
+        markers.forEach((marker) => {
+            if (marker.placemark) {
+                marker.placemark.options.set(
+                    'preset',
+                    hoveredOrderId === marker.orderId ||
+                        selectedOrderId === marker.orderId
+                        ? 'islands#redDotIcon'
+                        : 'islands#blueDotIcon'
+                );
             }
-        };
+        });
+    }, [hoveredOrderId, selectedOrderId, markers, map]);
 
-        updateMarkerHighlights();
-    }, [hoveredOrderId, map, markers]);
+    // Center map on clicked order without changing zoom
+    useEffect(() => {
+        if (!map || !clickedOrderId) return;
+
+        const orderMarker = markers.find(
+            (marker) => marker.orderId === clickedOrderId
+        );
+
+        if (orderMarker) {
+            // Get current zoom level
+            const currentZoom = map.getZoom();
+
+            // Set center at the current zoom level
+            map.setCenter(orderMarker.coords, currentZoom, {
+                duration: 500,
+            });
+        }
+    }, [clickedOrderId, map, markers]);
 
     // Handle assigning courier to an order
     const assignCourier = async (orderId: number, courierId: number) => {
@@ -410,14 +538,26 @@ const DeliveryManagement = () => {
     };
 
     // Format date in a readable way
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleString('ru-RU', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+    const formatDate = (dateString: string | undefined | null) => {
+        try {
+            if (!dateString) {
+                return 'Дата не указана';
+            }
+            const date = new Date(dateString);
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return 'Дата не указана';
+            }
+            return date.toLocaleString('ru-RU', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return 'Дата не указана';
+        }
     };
 
     if (loading) {
@@ -431,7 +571,7 @@ const DeliveryManagement = () => {
     }
 
     return (
-        <MantineProvider>
+        <MantineProvider withNormalizeCSS withGlobalStyles>
             <div>
                 <Title title='Управление доставкой' />
 
@@ -459,8 +599,8 @@ const DeliveryManagement = () => {
 
                 <div className='flex flex-col md:flex-row gap-6'>
                     {/* Map Container */}
-                    <div className='w-full md:w-2/3'>
-                        <Card shadow='sm' p='lg' radius='md' withBorder mb={20}>
+                    <div className='w-full md:w-1/2'>
+                        <Card shadow='md' p='xl' radius='md' withBorder mb={20}>
                             {mapError ? (
                                 <div className='flex flex-col items-center justify-center h-[500px] bg-gray-100'>
                                     <IconAlertTriangle
@@ -494,8 +634,8 @@ const DeliveryManagement = () => {
                     </div>
 
                     {/* Orders List */}
-                    <div className='w-full md:w-1/3'>
-                        <Card shadow='sm' p='lg' radius='md' withBorder>
+                    <div className='w-full md:w-1/2'>
+                        <Card shadow='md' p='xl' radius='md' withBorder>
                             <Card.Section className='p-4 bg-gray-100 border-b border-gray-200'>
                                 <Text className='text-lg font-bold'>
                                     Заказы готовые к доставке
@@ -513,16 +653,19 @@ const DeliveryManagement = () => {
                                     </Text>
                                 </div>
                             ) : (
-                                <div className='max-h-[600px] overflow-y-auto py-2'>
+                                <div className='max-h-[600px] !space-y-4 overflow-y-auto mt-4'>
                                     {orders.map((order) => (
                                         <Card
                                             key={order.id}
                                             shadow='sm'
-                                            p='sm'
+                                            p='lg'
                                             radius='md'
                                             mb='sm'
-                                            className={`border-l-4 transition-all ${
+                                            className={`!p-2 shadow-sm border-l-4 transition-all ${
                                                 hoveredOrderId === order.id
+                                                    ? 'border-l-blue-500 bg-blue-50'
+                                                    : selectedOrderId ===
+                                                      order.id
                                                     ? 'border-l-blue-500 bg-blue-50'
                                                     : 'border-l-transparent bg-white'
                                             }`}
@@ -532,57 +675,63 @@ const DeliveryManagement = () => {
                                             onMouseLeave={() =>
                                                 setHoveredOrderId(null)
                                             }
+                                            onClick={() => {
+                                                setClickedOrderId(order.id);
+                                                setSelectedOrderId(order.id);
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                            withBorder
                                         >
-                                            <div className='flex justify-between items-center mb-2'>
+                                            <div className='flex justify-between items-center mb-3'>
                                                 <Badge
                                                     color='blue'
                                                     variant='filled'
+                                                    size='lg'
+                                                    className='font-bold'
                                                 >
                                                     Заказ #{order.id}
                                                 </Badge>
-                                                <Text size='xs' color='dimmed'>
+                                                <Text
+                                                    size='sm'
+                                                    className='font-bold'
+                                                >
                                                     {formatDate(
-                                                        order.dateOrdered
+                                                        order.deliveryTime
                                                     )}
                                                 </Text>
                                             </div>
 
-                                            <Group className='mb-2'>
-                                                <Avatar
-                                                    color='indigo'
-                                                    radius='xl'
-                                                >
-                                                    <IconUser size={20} />
-                                                </Avatar>
-                                                <div>
-                                                    <Text className='font-medium'>
-                                                        {order.user.name}{' '}
-                                                        {order.user.surname}
-                                                    </Text>
-                                                    {order.user.phoneNumber && (
-                                                        <Text
-                                                            size='xs'
-                                                            color='dimmed'
-                                                        >
-                                                            <IconPhone
-                                                                size={12}
-                                                                style={{
-                                                                    display:
-                                                                        'inline',
-                                                                    marginRight: 4,
-                                                                }}
-                                                            />
-                                                            {
-                                                                order.user
-                                                                    .phoneNumber
-                                                            }
-                                                        </Text>
-                                                    )}
-                                                </div>
-                                            </Group>
+                                            <div className='flex items-center mb-3 gap-2'>
+                                                <IconUser
+                                                    size={18}
+                                                    color='#666'
+                                                />
+                                                <Text className='font-medium'>
+                                                    {order.user.name}{' '}
+                                                    {order.user.surname}
+                                                </Text>
+                                            </div>
 
-                                            <Group className='mb-3'>
-                                                <IconHomeEdit size={14} />
+                                            {order.user.phoneNumber && (
+                                                <div className='flex items-center gap-2 mb-3'>
+                                                    <IconPhone
+                                                        size={18}
+                                                        color='#666'
+                                                    />
+                                                    <Text
+                                                        size='sm'
+                                                        color='dimmed'
+                                                    >
+                                                        {order.user.phoneNumber}
+                                                    </Text>
+                                                </div>
+                                            )}
+
+                                            <div className='flex items-start gap-2 mb-3'>
+                                                <IconHomeEdit
+                                                    size={18}
+                                                    color='#666'
+                                                />
                                                 <Text size='sm'>
                                                     {order.address ? (
                                                         <>
@@ -602,104 +751,61 @@ const DeliveryManagement = () => {
                                                         'Адрес не указан'
                                                     )}
                                                 </Text>
-                                            </Group>
+                                            </div>
 
-                                            <div className='flex justify-between items-center mt-3'>
-                                                <div
-                                                    style={{
-                                                        minWidth: '140px',
+                                            {/* Courier Assignment Dropdown */}
+                                            <div className='flex items-center gap-2 mt-4'>
+                                                <IconTruck
+                                                    size={18}
+                                                    color='#666'
+                                                />
+                                                <select
+                                                    className='w-full p-2 border border-gray-300 rounded'
+                                                    value={
+                                                        order.courierId?.toString() ||
+                                                        ''
+                                                    }
+                                                    onChange={(e) => {
+                                                        const value =
+                                                            e.target.value;
+                                                        if (value) {
+                                                            const courierId =
+                                                                parseInt(value);
+                                                            assignCourier(
+                                                                order.id,
+                                                                courierId
+                                                            );
+                                                        }
                                                     }}
                                                 >
-                                                    <Menu
-                                                        shadow='md'
-                                                        width={200}
-                                                    >
-                                                        <Menu.Target>
-                                                            <Button
-                                                                variant='light'
-                                                                color='blue'
-                                                                size='xs'
-                                                                fullWidth
-                                                                leftSection={
-                                                                    <IconUser
-                                                                        size={
-                                                                            14
-                                                                        }
-                                                                    />
-                                                                }
-                                                            >
-                                                                {order.courierId
-                                                                    ? couriers.find(
-                                                                          (c) =>
-                                                                              c.id ===
-                                                                              order.courierId
-                                                                      )?.name ||
-                                                                      'Неизвестен'
-                                                                    : 'Назначить курьера'}
-                                                            </Button>
-                                                        </Menu.Target>
-                                                        <Menu.Dropdown>
-                                                            <Menu.Item
-                                                                onClick={() =>
-                                                                    assignCourier(
-                                                                        order.id,
-                                                                        0
-                                                                    )
-                                                                }
-                                                                color='red'
-                                                            >
-                                                                Отменить
-                                                                назначение
-                                                            </Menu.Item>
-                                                            <Menu.Divider />
-                                                            {couriers.map(
-                                                                (courier) => (
-                                                                    <Menu.Item
-                                                                        key={
-                                                                            courier.id
-                                                                        }
-                                                                        onClick={() =>
-                                                                            assignCourier(
-                                                                                order.id,
-                                                                                courier.id
-                                                                            )
-                                                                        }
-                                                                        leftSection={
-                                                                            <IconUser
-                                                                                size={
-                                                                                    14
-                                                                                }
-                                                                            />
-                                                                        }
-                                                                    >
-                                                                        {
-                                                                            courier.name
-                                                                        }{' '}
-                                                                        {
-                                                                            courier.surname
-                                                                        }
-                                                                    </Menu.Item>
-                                                                )
-                                                            )}
-                                                        </Menu.Dropdown>
-                                                    </Menu>
-                                                </div>
-
-                                                <Button
-                                                    variant='filled'
-                                                    color='green'
-                                                    size='xs'
-                                                    disabled={!order.courierId}
-                                                    leftSection={
-                                                        <IconTruck size={16} />
-                                                    }
-                                                    onClick={() =>
-                                                        dispatchOrder(order.id)
-                                                    }
-                                                >
-                                                    Отправить
-                                                </Button>
+                                                    <option value=''>
+                                                        Выберите курьера
+                                                    </option>
+                                                    {couriers.map((courier) => (
+                                                        <option
+                                                            key={courier.id}
+                                                            value={courier.id.toString()}
+                                                        >
+                                                            {courier.name}{' '}
+                                                            {courier.surname}
+                                                        </option>
+                                                    ))}
+                                                </select>
                                             </div>
+
+                                            {/* Dispatch Button - show only when courier is assigned */}
+                                            {order.courierId && (
+                                                <Button
+                                                    color='green'
+                                                    className='mt-3 m-auto block py-1 px-2 text-white font-bold w-fit rounded-sm bg-blue-500'
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // Prevent card selection
+                                                        dispatchOrder(order.id);
+                                                    }}
+                                                >
+                                                    Отправить заказ
+                                                </Button>
+                                            )}
                                         </Card>
                                     ))}
                                 </div>
