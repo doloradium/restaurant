@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         const cook = await verifyCookAuth(request);
         if (!cook) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Не авторизован' },
                 { status: 401 }
             );
         }
@@ -68,15 +68,25 @@ export async function GET(request: Request) {
             },
             orderBy: [
                 // Sort by delivery date (using dateOrdered as fallback)
-                { dateOrdered: 'asc' },
+                { deliveryTime: 'asc' },
             ],
         });
 
-        return NextResponse.json({ orders });
+        // Ensure dates are properly formatted
+        const formattedOrders = orders.map((order) => {
+            return {
+                ...order,
+                deliveryTime: order.deliveryTime
+                    ? order.deliveryTime.toISOString()
+                    : null,
+            };
+        });
+
+        return NextResponse.json({ orders: formattedOrders });
     } catch (error) {
         console.error('Error fetching cook orders:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch orders' },
+            { error: 'Не удалось загрузить заказы' },
             { status: 500 }
         );
     }

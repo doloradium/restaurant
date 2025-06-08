@@ -25,10 +25,10 @@ export default function CookLayout({
         return (
             <div className='min-h-screen flex items-center justify-center bg-gray-100'>
                 <div className='bg-white p-8 rounded-lg shadow-md w-96 text-center'>
-                    <h2 className='text-xl mb-4'>Loading...</h2>
+                    <h2 className='text-xl mb-4'>Загрузка...</h2>
                     <div className='w-12 h-12 border-t-4 border-red-500 border-solid rounded-full animate-spin mx-auto'></div>
                     <p className='mt-4 text-gray-600'>
-                        Verifying authentication...
+                        Проверка авторизации...
                     </p>
                 </div>
             </div>
@@ -47,17 +47,17 @@ export default function CookLayout({
                 <div className='container mx-auto px-4 py-4 flex justify-between items-center'>
                     <div>
                         <h1 className='text-2xl font-bold'>
-                            Kitchen Dashboard
+                            Панель управления кухней
                         </h1>
                     </div>
                     {cookUser && (
                         <div className='flex items-center space-x-4'>
-                            <span>Welcome, {cookUser.name}</span>
+                            <span>Здравствуйте, {cookUser.name}</span>
                             <button
                                 onClick={cookLogout}
                                 className='bg-white text-red-600 px-4 py-2 rounded hover:bg-gray-100'
                             >
-                                Logout
+                                Выйти
                             </button>
                         </div>
                     )}
@@ -71,7 +71,7 @@ export default function CookLayout({
             <footer className='bg-gray-800 text-white py-4'>
                 <div className='container mx-auto px-4 text-center'>
                     <p>
-                        Kitchen Staff Portal &copy; {new Date().getFullYear()}
+                        Портал персонала кухни &copy; {new Date().getFullYear()}
                     </p>
                 </div>
             </footer>

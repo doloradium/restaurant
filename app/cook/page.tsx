@@ -48,7 +48,7 @@ export default function CookDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Fetch orders that are CONFIRMED or PREPARING
+    // Fetch orders assigned to the cook
     const fetchOrders = async () => {
         try {
             setIsLoading(true);
@@ -57,13 +57,13 @@ export default function CookDashboard() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch orders');
+                throw new Error('Не удалось загрузить заказы');
             }
 
             const data = await response.json();
             setOrders(data.orders);
         } catch (error: any) {
-            setError(error.message || 'Error fetching orders');
+            setError(error.message || 'Ошибка при загрузке заказов');
             console.error('Error fetching orders:', error);
         } finally {
             setIsLoading(false);
@@ -105,7 +105,7 @@ export default function CookDashboard() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to update order status');
+                throw new Error('Не удалось обновить статус заказа');
             }
 
             // Update local state - either update the order or remove it if it's now READY
@@ -121,7 +121,7 @@ export default function CookDashboard() {
                 );
             }
         } catch (error: any) {
-            setError(error.message || 'Error updating order status');
+            setError(error.message || 'Ошибка при обновлении статуса заказа');
             console.error('Error updating order status:', error);
         }
     };
@@ -130,29 +130,53 @@ export default function CookDashboard() {
     const getButtonProps = (status: string) => {
         if (status === 'CONFIRMED') {
             return {
-                text: 'Start Preparing',
+                text: 'Начать приготовление',
                 className: 'bg-yellow-500 hover:bg-yellow-600',
                 nextStatus: 'PREPARING',
             };
         } else if (status === 'PREPARING') {
             return {
-                text: 'Mark as Ready',
+                text: 'Отметить как готовый',
                 className: 'bg-green-500 hover:bg-green-600',
                 nextStatus: 'READY',
             };
         }
         return {
-            text: 'Invalid Status',
+            text: 'Неверный статус',
             className: 'bg-gray-500',
             nextStatus: '',
         };
+    };
+
+    // Format date safely
+    const formatDateSafe = (dateString: string | null | undefined) => {
+        if (!dateString) return 'Дата не указана';
+
+        try {
+            const date = new Date(dateString);
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return 'Некорректная дата';
+            }
+
+            return date.toLocaleString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return 'Ошибка даты';
+        }
     };
 
     if (isLoading) {
         return (
             <div className='flex justify-center items-center h-64'>
                 <div className='animate-spin rounded-full h-16 w-16 border-t-4 border-red-500'></div>
-                <span className='ml-4 text-xl'>Loading orders...</span>
+                <span className='ml-4 text-xl'>Загрузка заказов...</span>
             </div>
         );
     }
@@ -163,7 +187,7 @@ export default function CookDashboard() {
                 className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative'
                 role='alert'
             >
-                <strong className='font-bold'>Error:</strong>
+                <strong className='font-bold'>Ошибка:</strong>
                 <span className='block sm:inline'> {error}</span>
             </div>
         );
@@ -172,21 +196,22 @@ export default function CookDashboard() {
     return (
         <div>
             <div className='flex justify-between items-center mb-6'>
-                <h1 className='text-2xl font-bold'>Pending Orders</h1>
+                <h1 className='text-2xl font-bold'>Ожидающие заказы</h1>
                 <button
                     onClick={fetchOrders}
                     className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
                 >
-                    Refresh Orders
+                    Обновить заказы
                 </button>
             </div>
 
             {orders.length === 0 ? (
                 <div className='bg-white p-8 rounded-lg shadow text-center'>
-                    <h2 className='text-xl mb-2'>No orders to prepare</h2>
+                    <h2 className='text-xl mb-2'>
+                        Нет заказов для приготовления
+                    </h2>
                     <p className='text-gray-600'>
-                        All orders are currently completed or awaiting
-                        confirmation.
+                        Все заказы выполнены или ожидают подтверждения.
                     </p>
                 </div>
             ) : (
@@ -199,12 +224,10 @@ export default function CookDashboard() {
                             <div className='flex justify-between items-center mb-4'>
                                 <div>
                                     <h3 className='text-lg font-bold'>
-                                        Order #{order.id}
+                                        Заказ #{order.id}
                                     </h3>
                                     <p className='text-sm text-gray-600'>
-                                        {new Date(
-                                            order.dateOrdered
-                                        ).toLocaleString()}
+                                        {formatDateSafe(order.dateOrdered)}
                                     </p>
                                 </div>
                                 <div>
@@ -215,14 +238,16 @@ export default function CookDashboard() {
                                                 : 'bg-yellow-500'
                                         }`}
                                     >
-                                        {order.status}
+                                        {order.status === 'CONFIRMED'
+                                            ? 'ПОДТВЕРЖДЕН'
+                                            : 'ГОТОВИТСЯ'}
                                     </span>
                                 </div>
                             </div>
 
                             <hr className='my-3' />
 
-                            <h4 className='font-bold mb-2'>Items:</h4>
+                            <h4 className='font-bold mb-2'>Позиции:</h4>
                             <ul className='space-y-2 mb-4'>
                                 {order.orderItems.map((item) => (
                                     <li
@@ -230,13 +255,13 @@ export default function CookDashboard() {
                                         className='flex justify-between'
                                     >
                                         <span className='font-medium'>
-                                            {item.quantity}x {item.item.name}
+                                            {item.quantity}× {item.item.name}
                                         </span>
                                         <span className='text-gray-600'>
-                                            $
                                             {(
                                                 item.item.price * item.quantity
-                                            ).toFixed(2)}
+                                            ).toFixed(2)}{' '}
+                                            ₽
                                         </span>
                                     </li>
                                 ))}
@@ -261,7 +286,7 @@ export default function CookDashboard() {
                                 </button>
                             ) : (
                                 <div className='bg-gray-100 p-2 text-center rounded mt-4 text-gray-600'>
-                                    No action required
+                                    Действий не требуется
                                 </div>
                             )}
                         </div>

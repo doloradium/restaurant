@@ -29,10 +29,10 @@ export default function CourierLayout({
         return (
             <div className='min-h-screen flex items-center justify-center bg-gray-100'>
                 <div className='bg-white p-8 rounded-lg shadow-md w-96 text-center'>
-                    <h2 className='text-xl mb-4'>Loading...</h2>
+                    <h2 className='text-xl mb-4'>Загрузка...</h2>
                     <div className='w-12 h-12 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto'></div>
                     <p className='mt-4 text-gray-600'>
-                        Verifying authentication...
+                        Проверка авторизации...
                     </p>
                 </div>
             </div>
@@ -50,18 +50,16 @@ export default function CourierLayout({
             <header className='bg-blue-600 text-white'>
                 <div className='container mx-auto px-4 py-4 flex justify-between items-center'>
                     <div>
-                        <h1 className='text-2xl font-bold'>
-                            Courier Dashboard
-                        </h1>
+                        <h1 className='text-2xl font-bold'>Панель курьера</h1>
                     </div>
                     {courierUser && (
                         <div className='flex items-center space-x-4'>
-                            <span>Welcome, {courierUser.name}</span>
+                            <span>Здравствуйте, {courierUser.name}</span>
                             <button
                                 onClick={courierLogout}
                                 className='bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100'
                             >
-                                Logout
+                                Выйти
                             </button>
                         </div>
                     )}
@@ -74,7 +72,7 @@ export default function CourierLayout({
 
             <footer className='bg-gray-800 text-white py-4'>
                 <div className='container mx-auto px-4 text-center'>
-                    <p>Courier Portal &copy; {new Date().getFullYear()}</p>
+                    <p>Панель курьера &copy; {new Date().getFullYear()}</p>
                 </div>
             </footer>
         </div>

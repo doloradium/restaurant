@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { FaTrash, FaMinus, FaPlus } from 'react-icons/fa';
 import { useCart } from '../CartProvider';
 import Link from 'next/link';
@@ -45,25 +44,6 @@ const CartPage = () => {
                             key={item.id}
                             className='p-6 flex items-center space-x-4'
                         >
-                            <div className='flex-shrink-0 w-24 h-24 relative'>
-                                {item.image ? (
-                                    <Image
-                                        src={item.image}
-                                        alt={item.name}
-                                        width={96}
-                                        height={96}
-                                        className='rounded-lg object-cover w-full h-full'
-                                        style={{ objectFit: 'cover' }}
-                                    />
-                                ) : (
-                                    <div className='w-full h-full bg-gray-200 rounded-lg flex items-center justify-center'>
-                                        <span className='text-gray-500 text-xs'>
-                                            Нет изображения
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-
                             <div className='flex-1 min-w-0'>
                                 <h3 className='text-lg font-medium text-gray-900'>
                                     {item.name}
@@ -72,7 +52,7 @@ const CartPage = () => {
                                     {item.description}
                                 </p>
                                 <p className='text-lg font-medium text-red-600 mt-1'>
-                                    ₽{item.price.toFixed(2)}
+                                    ₽{(item.price || 0).toFixed(2)}
                                 </p>
                             </div>
 
@@ -80,7 +60,7 @@ const CartPage = () => {
                                 <button
                                     onClick={() =>
                                         updateQuantity(
-                                            item.id,
+                                            item.id || '',
                                             item.quantity - 1
                                         )
                                     }
@@ -94,7 +74,7 @@ const CartPage = () => {
                                 <button
                                     onClick={() =>
                                         updateQuantity(
-                                            item.id,
+                                            item.id || '',
                                             item.quantity + 1
                                         )
                                     }
@@ -105,7 +85,7 @@ const CartPage = () => {
                             </div>
 
                             <button
-                                onClick={() => removeFromCart(item.id)}
+                                onClick={() => removeFromCart(item.id || '')}
                                 className='text-gray-400 hover:text-red-500'
                             >
                                 <FaTrash />

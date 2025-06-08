@@ -26,8 +26,7 @@ interface Order {
     paymentType: string;
     isPaid: boolean;
     isCompleted: boolean;
-    dateOrdered: string;
-    dateArrived: string | null;
+    deliveryTime: string | null;
     status:
         | 'PENDING'
         | 'CONFIRMED'
@@ -42,9 +41,16 @@ interface Order {
         name: string;
         email: string;
         phoneNumber: string | null;
-        street: string | null;
-        house: string | null;
+    };
+    address: {
+        id: number;
+        street: string;
+        houseNumber: string;
         apartment: string | null;
+        entrance: string | null;
+        floor: string | null;
+        intercom: string | null;
+        city: string;
     };
 }
 
@@ -63,13 +69,27 @@ export default function CourierDashboard() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch orders');
+                throw new Error('Не удалось загрузить заказы');
             }
 
             const data = await response.json();
+            console.log('Fetched orders data:', data.orders);
+
+            // Debug date fields
+            if (data.orders && data.orders.length > 0) {
+                console.log(
+                    'First order deliveryTime:',
+                    data.orders[0].deliveryTime
+                );
+                console.log(
+                    'Parsed date:',
+                    new Date(data.orders[0].deliveryTime)
+                );
+            }
+
             setOrders(data.orders);
         } catch (error: any) {
-            setError(error.message || 'Error fetching orders');
+            setError(error.message || 'Ошибка при загрузке заказов');
             console.error('Error fetching orders:', error);
         } finally {
             setIsLoading(false);
@@ -117,7 +137,7 @@ export default function CourierDashboard() {
             // Update local state - either update the order or remove it if it's now COMPLETED
             if (newStatus === 'COMPLETED') {
                 setOrders(orders.filter((order) => order.id !== orderId));
-                toast.success('Order marked as completed');
+                toast.success('Заказ отмечен как выполненный');
             } else {
                 setOrders(
                     orders.map((order) =>
@@ -126,44 +146,75 @@ export default function CourierDashboard() {
                             : order
                     )
                 );
-                toast.success(`Order status updated to ${newStatus}`);
+                toast.success(
+                    `Статус заказа обновлен на ${
+                        newStatus === 'DELIVERED' ? 'ДОСТАВЛЯЕТСЯ' : newStatus
+                    }`
+                );
             }
         } catch (error: any) {
-            toast.error(error.message || 'Error updating order status');
-            setError(error.message || 'Error updating order status');
+            toast.error(
+                error.message || 'Ошибка при обновлении статуса заказа'
+            );
+            setError(error.message || 'Ошибка при обновлении статуса заказа');
             console.error('Error updating order status:', error);
+        }
+    };
+
+    // Format date safely
+    const formatDateSafe = (dateString: string | null | undefined) => {
+        if (!dateString) return 'Дата не указана';
+
+        try {
+            const date = new Date(dateString);
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                return 'Некорректная дата';
+            }
+
+            return date.toLocaleString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return 'Ошибка даты';
         }
     };
 
     // Format address
     const formatAddress = (order: Order) => {
-        const { street, house, apartment } = order.user;
+        const { street, houseNumber, apartment, city } = order.address;
         let address = '';
 
+        if (city) address += city + ', ';
         if (street) address += street;
-        if (house) address += `, ${house}`;
-        if (apartment) address += `, apt. ${apartment}`;
+        if (houseNumber) address += `, ${houseNumber}`;
+        if (apartment) address += `, кв. ${apartment}`;
 
-        return address || 'No address provided';
+        return address || 'Адрес не указан';
     };
 
     // Get appropriate button text and color based on order status
     const getButtonProps = (status: string) => {
         if (status === 'READY') {
             return {
-                text: 'Mark as Delivered',
+                text: 'Отметить как доставленный',
                 className: 'bg-blue-500 hover:bg-blue-600',
                 nextStatus: 'DELIVERED',
             };
         } else if (status === 'DELIVERED') {
             return {
-                text: 'Complete Delivery',
+                text: 'Завершить доставку',
                 className: 'bg-green-500 hover:bg-green-600',
                 nextStatus: 'COMPLETED',
             };
         }
         return {
-            text: 'Invalid Status',
+            text: 'Неверный статус',
             className: 'bg-gray-500',
             nextStatus: '',
         };
@@ -173,7 +224,7 @@ export default function CourierDashboard() {
         return (
             <div className='flex justify-center items-center h-64'>
                 <div className='animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500'></div>
-                <span className='ml-4 text-xl'>Loading deliveries...</span>
+                <span className='ml-4 text-xl'>Загрузка заказов...</span>
             </div>
         );
     }
@@ -184,7 +235,7 @@ export default function CourierDashboard() {
                 className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative'
                 role='alert'
             >
-                <strong className='font-bold'>Error:</strong>
+                <strong className='font-bold'>Ошибка:</strong>
                 <span className='block sm:inline'> {error}</span>
             </div>
         );
@@ -193,20 +244,20 @@ export default function CourierDashboard() {
     return (
         <div>
             <div className='flex justify-between items-center mb-6'>
-                <h1 className='text-2xl font-bold'>My Deliveries</h1>
+                <h1 className='text-2xl font-bold'>Мои доставки</h1>
                 <button
                     onClick={fetchOrders}
                     className='bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded'
                 >
-                    Refresh Deliveries
+                    Обновить список
                 </button>
             </div>
 
             {orders.length === 0 ? (
                 <div className='bg-white p-8 rounded-lg shadow text-center'>
-                    <h2 className='text-xl mb-2'>No pending deliveries</h2>
+                    <h2 className='text-xl mb-2'>Нет активных доставок</h2>
                     <p className='text-gray-600'>
-                        You don't have any orders to deliver at the moment.
+                        У вас пока нет заказов для доставки.
                     </p>
                 </div>
             ) : (
@@ -219,12 +270,12 @@ export default function CourierDashboard() {
                             <div className='flex justify-between items-center mb-4'>
                                 <div>
                                     <h3 className='text-lg font-bold'>
-                                        Order #{order.id}
+                                        Заказ #{order.id}
                                     </h3>
                                     <p className='text-sm text-gray-600'>
-                                        {new Date(
-                                            order.dateOrdered
-                                        ).toLocaleString()}
+                                        {order.deliveryTime
+                                            ? formatDateSafe(order.deliveryTime)
+                                            : 'Время доставки не указано'}
                                     </p>
                                 </div>
                                 <div>
@@ -235,7 +286,9 @@ export default function CourierDashboard() {
                                                 : 'bg-green-500'
                                         }`}
                                     >
-                                        {order.status}
+                                        {order.status === 'READY'
+                                            ? 'ГОТОВ'
+                                            : 'ДОСТАВЛЯЕТСЯ'}
                                     </span>
                                 </div>
                             </div>
@@ -244,18 +297,18 @@ export default function CourierDashboard() {
 
                             {/* Customer info */}
                             <div className='mb-4'>
-                                <h4 className='font-bold mb-2'>Customer:</h4>
-                                <p>Name: {order.user.name}</p>
+                                <h4 className='font-bold mb-2'>Клиент:</h4>
+                                <p>Имя: {order.user.name}</p>
                                 <p>
-                                    Phone:{' '}
-                                    {order.user.phoneNumber || 'Not provided'}
+                                    Телефон:{' '}
+                                    {order.user.phoneNumber || 'Не указан'}
                                 </p>
-                                <p>Address: {formatAddress(order)}</p>
+                                <p>Адрес: {formatAddress(order)}</p>
                             </div>
 
                             <hr className='my-3' />
 
-                            <h4 className='font-bold mb-2'>Items:</h4>
+                            <h4 className='font-bold mb-2'>Товары:</h4>
                             <ul className='space-y-2 mb-4'>
                                 {order.orderItems.map((item) => (
                                     <li
@@ -263,13 +316,13 @@ export default function CourierDashboard() {
                                         className='flex justify-between'
                                     >
                                         <span className='font-medium'>
-                                            {item.quantity}x {item.item.name}
+                                            {item.quantity}× {item.item.name}
                                         </span>
                                         <span className='text-gray-600'>
-                                            $
                                             {(
                                                 item.item.price * item.quantity
-                                            ).toFixed(2)}
+                                            ).toFixed(2)}{' '}
+                                            ₽
                                         </span>
                                     </li>
                                 ))}
@@ -280,11 +333,14 @@ export default function CourierDashboard() {
                             {/* Payment info */}
                             <div className='mb-4'>
                                 <p className='font-medium'>
-                                    Payment: {order.paymentType}
+                                    Оплата:{' '}
+                                    {order.paymentType === 'CARD'
+                                        ? 'Картой'
+                                        : 'Наличными'}
                                 </p>
                                 <p className='font-medium'>
-                                    Payment Status:{' '}
-                                    {order.isPaid ? 'Paid' : 'Not Paid'}
+                                    Статус оплаты:{' '}
+                                    {order.isPaid ? 'Оплачен' : 'Не оплачен'}
                                 </p>
                             </div>
 

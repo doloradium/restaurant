@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
             !items ||
             !items.length ||
             !paymentType ||
-            !status ||
             !addressId ||
             !deliveryTime
         ) {
@@ -22,14 +21,19 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Determine initial order status based on payment type
+        // CASH payments can be immediately CONFIRMED
+        // CARD payments start as PENDING and will be updated to CONFIRMED by webhook or success page
+        const initialStatus = paymentType === 'CASH' ? 'CONFIRMED' : 'PENDING';
+
         // Create the order with the addressId and deliveryTime
         const order = await dbHelpers.order.create({
             data: {
                 userId,
                 addressId,
                 paymentType,
-                status,
-                isPaid: paymentType === 'CARD', // Mark as paid if using card
+                status: initialStatus,
+                isPaid: false, // Always start as not paid, will be updated by payment process
                 isCompleted: false,
                 deliveryTime: new Date(deliveryTime),
                 orderItems: {
@@ -49,7 +53,13 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        console.log('Order created successfully:', order);
+        console.log('Order created successfully:', {
+            id: order.id,
+            status: order.status,
+            paymentType: order.paymentType,
+            isPaid: order.isPaid,
+        });
+
         return NextResponse.json(order);
     } catch (error) {
         console.error('Error creating order:', error);

@@ -131,3 +131,63 @@ export default function CartProvider({
         <CartContext.Provider value={value}>{children}</CartContext.Provider>
     );
 }
+
+// Helper function to construct image URL
+const getImageUrl = (item: any) => {
+    // If item already has a complete image URL
+    if (
+        item.imageUrl &&
+        (item.imageUrl.startsWith('/') || item.imageUrl.startsWith('http'))
+    ) {
+        return item.imageUrl;
+    }
+
+    // If item.item has an imageUrl (from order history)
+    if (
+        item.item?.imageUrl &&
+        (item.item.imageUrl.startsWith('/') ||
+            item.item.imageUrl.startsWith('http'))
+    ) {
+        return item.item.imageUrl;
+    }
+
+    // If there's an image ID and it seems to be a full path already
+    if (
+        item.image &&
+        (item.image.startsWith('/') || item.image.includes('/'))
+    ) {
+        return item.image;
+    }
+
+    // If item.item has an image that's a full path
+    if (
+        item.item?.image &&
+        (item.item.image.startsWith('/') || item.item.image.includes('/'))
+    ) {
+        return item.item.image;
+    }
+
+    // If item has an ID, use that to fetch image from the new API route
+    if (item.id) {
+        return `/api/images/${item.id}`;
+    }
+
+    // If item.item has an ID, use that to fetch image
+    if (item.item?.id) {
+        return `/api/images/${item.item.id}`;
+    }
+
+    // Check if image is an uploaded file ID (numeric or has specific format)
+    if (item.image) {
+        // If the image might be an uploaded file, use API route
+        return `/api/images/${item.image}`;
+    }
+
+    // If item.item has an image ID
+    if (item.item?.image) {
+        return `/api/images/${item.item.image}`;
+    }
+
+    // Default image if none available
+    return '/images/default-dish.jpg';
+};

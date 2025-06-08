@@ -27,7 +27,7 @@ export default function CookLogin() {
         <div className='min-h-screen flex items-center justify-center bg-gray-100'>
             <div className='bg-white p-8 rounded-lg shadow-md w-96'>
                 <h1 className='text-2xl font-bold text-center mb-6 text-red-600'>
-                    Cook Login
+                    Вход для повара
                 </h1>
 
                 {cookError && (
@@ -42,7 +42,7 @@ export default function CookLogin() {
                             className='block text-gray-700 mb-2'
                             htmlFor='email'
                         >
-                            Email
+                            Электронная почта
                         </label>
                         <input
                             id='email'
@@ -59,7 +59,7 @@ export default function CookLogin() {
                             className='block text-gray-700 mb-2'
                             htmlFor='password'
                         >
-                            Password
+                            Пароль
                         </label>
                         <input
                             id='password'
@@ -76,15 +76,15 @@ export default function CookLogin() {
                         className='w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition duration-200 disabled:bg-red-400'
                         disabled={cookLoading}
                     >
-                        {cookLoading ? 'Logging in...' : 'Login'}
+                        {cookLoading ? 'Вход...' : 'Войти'}
                     </button>
                 </form>
 
                 <div className='mt-4 text-center text-sm text-gray-600'>
-                    This login is only for kitchen staff.
+                    Этот вход только для персонала кухни.
                     <br />
                     <Link href='/' className='text-red-600 hover:text-red-800'>
-                        Return to main site
+                        Вернуться на главную
                     </Link>
                 </div>
             </div>

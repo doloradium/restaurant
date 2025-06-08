@@ -99,8 +99,8 @@ const CheckoutPage = () => {
                     addressId: addressData.id,
                     deliveryTime: deliveryDateTime,
                     paymentType: paymentMethod,
-                    status: 'PENDING',
-                    isPaid: paymentMethod === 'CASH', // Если оплата наличными, заказ не требует онлайн-оплаты
+                    status: paymentMethod === 'CASH' ? 'CONFIRMED' : 'PENDING',
+                    isPaid: paymentMethod === 'CASH',
                 }),
             });
 
@@ -133,6 +133,7 @@ const CheckoutPage = () => {
                             description: `Заказ №${orderData.id}`,
                             metadata: {
                                 orderId: orderData.id,
+                                order_id: orderData.id.toString(),
                             },
                         }),
                     }

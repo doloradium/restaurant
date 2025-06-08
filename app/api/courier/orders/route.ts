@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         const courier = await verifyCourierAuth(request);
         if (!courier) {
             return NextResponse.json(
-                { error: 'Unauthorized' },
+                { error: 'Не авторизован' },
                 { status: 401 }
             );
         }
@@ -69,23 +69,31 @@ export async function GET(request: Request) {
                         name: true,
                         email: true,
                         phoneNumber: true,
-                        street: true,
-                        house: true,
-                        apartment: true,
                     },
                 },
+                address: true,
             },
             orderBy: [
                 // Sort by delivery date
-                { dateOrdered: 'asc' },
+                { deliveryTime: 'asc' },
             ],
         });
 
-        return NextResponse.json({ orders });
+        // Ensure dates are properly formatted
+        const formattedOrders = orders.map((order) => {
+            return {
+                ...order,
+                deliveryTime: order.deliveryTime
+                    ? order.deliveryTime.toISOString()
+                    : null,
+            };
+        });
+
+        return NextResponse.json({ orders: formattedOrders });
     } catch (error) {
         console.error('Error fetching courier orders:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch orders' },
+            { error: 'Не удалось загрузить заказы' },
             { status: 500 }
         );
     }

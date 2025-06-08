@@ -12,6 +12,33 @@ export default function PaymentSuccessPage() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const [orderId, setOrderId] = useState<number | null>(null);
+    const [orderStatus, setOrderStatus] = useState<string | null>(null);
+    const [checkAttempts, setCheckAttempts] = useState(0);
+
+    // Function to check order status
+    const checkOrderStatus = async (orderId: string) => {
+        try {
+            console.log(`Checking status for order ${orderId}`);
+            const response = await fetch(`/api/orders/${orderId}`);
+
+            if (!response.ok) {
+                console.error(`Error fetching order ${orderId}`);
+                return null;
+            }
+
+            const orderData = await response.json();
+            console.log(
+                `Order ${orderId} status:`,
+                orderData.status,
+                'isPaid:',
+                orderData.isPaid
+            );
+            return orderData;
+        } catch (error) {
+            console.error('Error checking order status:', error);
+            return null;
+        }
+    };
 
     useEffect(() => {
         // Юкасса может возвращать разные параметры в URL, проверяем все возможные варианты
@@ -30,6 +57,11 @@ export default function PaymentSuccessPage() {
             return;
         }
 
+        // Set order ID from parameters
+        if (orderIdParam) {
+            setOrderId(Number(orderIdParam));
+        }
+
         async function verifyPayment() {
             try {
                 // Если есть ID платежа, проверяем статус
@@ -40,39 +72,159 @@ export default function PaymentSuccessPage() {
                     );
                     const statusData = await statusResponse.json();
 
-                    console.log('Статус платежа:', statusData);
+                    console.log('Статус платежа от Юкассы:', statusData);
 
                     if (
                         statusResponse.ok &&
-                        statusData.status === 'succeeded'
+                        (statusData.status === 'succeeded' ||
+                            statusData.status === 'waiting_for_capture')
                     ) {
                         // Если есть ID заказа, обновляем его статус
                         if (orderIdParam) {
-                            const updateOrderResponse = await fetch(
-                                `/api/orders/${orderIdParam}/paid`,
-                                {
-                                    method: 'PATCH',
-                                }
+                            console.log(
+                                'Updating order status for order:',
+                                orderIdParam
                             );
 
-                            if (updateOrderResponse.ok) {
+                            try {
+                                // First check current order status
+                                const orderData = await checkOrderStatus(
+                                    orderIdParam
+                                );
+
+                                if (
+                                    orderData &&
+                                    orderData.status !== 'CONFIRMED'
+                                ) {
+                                    console.log(
+                                        'Order needs status update. Current status:',
+                                        orderData.status
+                                    );
+
+                                    // Mark the order as paid
+                                    const updateOrderResponse = await fetch(
+                                        `/api/orders/${orderIdParam}/paid`,
+                                        {
+                                            method: 'PATCH',
+                                            headers: {
+                                                'Content-Type':
+                                                    'application/json',
+                                            },
+                                        }
+                                    );
+
+                                    const updatedOrder =
+                                        await updateOrderResponse.json();
+                                    console.log(
+                                        'Order update response:',
+                                        updatedOrder
+                                    );
+
+                                    // Set order status from response
+                                    if (updatedOrder && updatedOrder.status) {
+                                        setOrderStatus(updatedOrder.status);
+                                    }
+
+                                    if (updateOrderResponse.ok) {
+                                        setOrderId(Number(orderIdParam));
+                                        setSuccess(true);
+                                    } else {
+                                        console.error(
+                                            'Failed to update order status:',
+                                            updatedOrder
+                                        );
+                                        // Even if the update fails, show success to the user
+                                        // The webhook from Yookassa will likely update the status later
+                                        setOrderId(Number(orderIdParam));
+                                        setSuccess(true);
+                                        setError('');
+                                    }
+                                } else {
+                                    console.log(
+                                        'Order already in CONFIRMED status, no update needed'
+                                    );
+                                    // Order is already confirmed
+                                    setOrderId(Number(orderIdParam));
+                                    setOrderStatus(orderData?.status || null);
+                                    setSuccess(true);
+                                }
+                            } catch (err) {
+                                console.error(
+                                    'Error during order status update:',
+                                    err
+                                );
+                                // Still show success to the user despite the error
                                 setOrderId(Number(orderIdParam));
                                 setSuccess(true);
-                            } else {
-                                setError('Не удалось обновить статус заказа');
                             }
                         } else {
                             // Если нет ID заказа, но платеж успешный
                             setSuccess(true);
                         }
+                    } else if (statusData.status === 'canceled') {
+                        setError('Платеж был отменен');
                     } else {
                         setError('Платеж не был успешно завершен');
                     }
                 }
                 // Если есть только ID заказа без ID платежа
                 else if (orderIdParam) {
+                    console.log(
+                        `Only order ID ${orderIdParam} received, no payment ID. Checking order status directly.`
+                    );
+
+                    // Check order status directly
+                    const orderData = await checkOrderStatus(orderIdParam);
+
+                    if (orderData) {
+                        console.log(
+                            `Initial order status check: ${JSON.stringify(
+                                orderData
+                            )}`
+                        );
+                        setOrderStatus(orderData.status);
+
+                        // Check if order needs to be updated to CONFIRMED (regardless of isPaid)
+                        if (orderData.status !== 'CONFIRMED') {
+                            try {
+                                console.log(
+                                    `Order ${orderIdParam} status is still ${orderData.status}, updating to CONFIRMED`
+                                );
+                                const updateResponse = await fetch(
+                                    `/api/orders/${orderIdParam}/paid`,
+                                    {
+                                        method: 'PATCH',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                    }
+                                );
+
+                                const updatedData = await updateResponse.json();
+                                console.log(
+                                    `Manual status update response:`,
+                                    updatedData
+                                );
+
+                                if (updatedData && updatedData.status) {
+                                    setOrderStatus(updatedData.status);
+                                }
+                            } catch (err) {
+                                console.error(
+                                    'Error updating order status manually:',
+                                    err
+                                );
+                            }
+                        }
+
+                        // Show success regardless if order exists
+                        setSuccess(true);
+                    } else {
+                        console.log(`Could not find order ${orderIdParam}`);
+                        setError('Заказ не найден');
+                    }
+
                     setOrderId(Number(orderIdParam));
-                    setSuccess(true);
                 }
             } catch (error) {
                 console.error('Error verifying payment:', error);
@@ -84,6 +236,80 @@ export default function PaymentSuccessPage() {
 
         verifyPayment();
     }, [searchParams, router]);
+
+    // Periodically check order status if we have an order ID and it's not CONFIRMED yet
+    useEffect(() => {
+        if (
+            !orderId ||
+            loading ||
+            checkAttempts >= 10 ||
+            orderStatus === 'CONFIRMED'
+        ) {
+            return;
+        }
+
+        const intervalId = setInterval(async () => {
+            if (orderId) {
+                const orderData = await checkOrderStatus(orderId.toString());
+                if (orderData) {
+                    const newStatus = orderData.status;
+
+                    console.log(
+                        `Polling: Order ${orderId} status: ${newStatus}, isPaid: ${orderData.isPaid}`
+                    );
+                    setOrderStatus(newStatus);
+
+                    // If status is still PENDING but it should be CONFIRMED, try to update it manually
+                    if (newStatus === 'PENDING') {
+                        try {
+                            console.log(
+                                'Attempting to manually update order status to CONFIRMED'
+                            );
+                            const updateResponse = await fetch(
+                                `/api/orders/${orderId}/paid`,
+                                {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                }
+                            );
+
+                            if (updateResponse.ok) {
+                                const updatedData = await updateResponse.json();
+                                console.log(
+                                    'Manual update successful:',
+                                    updatedData
+                                );
+                                setOrderStatus(updatedData.status);
+                            }
+                        } catch (err) {
+                            console.error(
+                                'Error in manual status update:',
+                                err
+                            );
+                        }
+                    }
+
+                    // If status is now CONFIRMED, we can stop checking
+                    if (newStatus === 'CONFIRMED') {
+                        console.log('Order is now CONFIRMED, stopping polling');
+                        clearInterval(intervalId);
+                    }
+                }
+            }
+
+            setCheckAttempts((prev) => prev + 1);
+
+            // Stop checking after 10 attempts (50 seconds)
+            if (checkAttempts >= 9) {
+                console.log('Max polling attempts reached, stopping');
+                clearInterval(intervalId);
+            }
+        }, 5000); // Check every 5 seconds
+
+        return () => clearInterval(intervalId);
+    }, [orderId, loading, orderStatus, checkAttempts]);
 
     if (loading) {
         return (
@@ -144,6 +370,11 @@ export default function PaymentSuccessPage() {
                         Ваш заказ #{orderId} успешно оплачен и принят в
                         обработку.
                     </p>
+                    <p className='mt-2 text-sm text-gray-500'>
+                        {orderStatus === 'CONFIRMED'
+                            ? 'Заказ подтвержден и передан на кухню.'
+                            : 'Статус вашего заказа будет обновлен автоматически после подтверждения платежа.'}
+                    </p>
                 </div>
 
                 <div className='bg-white shadow rounded-lg p-6 mb-8'>
@@ -151,8 +382,9 @@ export default function PaymentSuccessPage() {
                         Что дальше?
                     </h3>
                     <p className='text-gray-500 mb-4'>
-                        Мы начали готовить ваш заказ. Вы можете отслеживать его
-                        статус в личном кабинете.
+                        {orderStatus === 'CONFIRMED'
+                            ? 'Мы начали готовить ваш заказ. Вы можете отслеживать его статус в личном кабинете.'
+                            : 'Мы начнем готовить ваш заказ после подтверждения платежа. Вы можете отслеживать его статус в личном кабинете.'}
                     </p>
                 </div>
 

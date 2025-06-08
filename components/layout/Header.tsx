@@ -1,8 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { FaUser, FaShoppingCart, FaBars, FaTimes } from 'react-icons/fa';
+import { useEffect, useState, useRef } from 'react';
+import {
+    FaUser,
+    FaShoppingCart,
+    FaBars,
+    FaTimes,
+    FaHistory,
+    FaAngleDown,
+} from 'react-icons/fa';
 import { useAuth } from '@/app/AuthProvider';
 import { useCart } from '@/app/CartProvider';
 
@@ -11,6 +18,25 @@ export default function Header() {
     const { totalItems } = useCart();
     const isLoggedIn = !!user;
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node)
+            ) {
+                setIsProfileDropdownOpen(false);
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Don't show auth buttons while loading
     const renderAuthButtons = () => {
@@ -20,13 +46,39 @@ export default function Header() {
 
         if (isLoggedIn) {
             return (
-                <Link
-                    href='/profile'
-                    className='flex items-center text-gray-700 hover:text-red-600'
-                >
-                    <FaUser className='mr-1' />
-                    <span>Профиль</span>
-                </Link>
+                <div className='relative' ref={dropdownRef}>
+                    <button
+                        onClick={() =>
+                            setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                        }
+                        className='flex items-center text-gray-700 hover:text-red-600 focus:outline-none'
+                    >
+                        <FaUser className='mr-1' />
+                        <span>Профиль</span>
+                        <FaAngleDown className='ml-1' />
+                    </button>
+
+                    {isProfileDropdownOpen && (
+                        <div className='absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10'>
+                            <Link
+                                href='/profile'
+                                className='block px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600'
+                                onClick={() => setIsProfileDropdownOpen(false)}
+                            >
+                                <FaUser className='inline-block mr-2' />
+                                Мой профиль
+                            </Link>
+                            <Link
+                                href='/profile/orders'
+                                className='block px-4 py-2 text-gray-700 hover:bg-red-50 hover:text-red-600'
+                                onClick={() => setIsProfileDropdownOpen(false)}
+                            >
+                                <FaHistory className='inline-block mr-2' />
+                                История заказов
+                            </Link>
+                        </div>
+                    )}
+                </div>
             );
         }
 
@@ -149,14 +201,24 @@ export default function Header() {
                             <hr className='border-gray-200' />
                             {!isLoading &&
                                 (isLoggedIn ? (
-                                    <Link
-                                        href='/profile'
-                                        className='flex items-center text-gray-700 hover:text-red-600 py-2'
-                                        onClick={() => setIsMenuOpen(false)}
-                                    >
-                                        <FaUser className='mr-2' />
-                                        <span>Профиль</span>
-                                    </Link>
+                                    <>
+                                        <Link
+                                            href='/profile'
+                                            className='flex items-center text-gray-700 hover:text-red-600 py-2'
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            <FaUser className='mr-2' />
+                                            <span>Мой профиль</span>
+                                        </Link>
+                                        <Link
+                                            href='/profile/orders'
+                                            className='flex items-center text-gray-700 hover:text-red-600 py-2'
+                                            onClick={() => setIsMenuOpen(false)}
+                                        >
+                                            <FaHistory className='mr-2' />
+                                            <span>История заказов</span>
+                                        </Link>
+                                    </>
                                 ) : (
                                     <>
                                         <Link

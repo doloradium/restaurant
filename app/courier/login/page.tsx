@@ -28,7 +28,7 @@ export default function CourierLogin() {
         <div className='min-h-screen flex items-center justify-center bg-gray-100'>
             <div className='bg-white p-8 rounded-lg shadow-md w-96'>
                 <h1 className='text-2xl font-bold text-center mb-6 text-blue-600'>
-                    Courier Login
+                    Вход для курьера
                 </h1>
 
                 {courierError && (
@@ -43,7 +43,7 @@ export default function CourierLogin() {
                             className='block text-gray-700 mb-2'
                             htmlFor='email'
                         >
-                            Email
+                            Электронная почта
                         </label>
                         <input
                             id='email'
@@ -60,7 +60,7 @@ export default function CourierLogin() {
                             className='block text-gray-700 mb-2'
                             htmlFor='password'
                         >
-                            Password
+                            Пароль
                         </label>
                         <input
                             id='password'
@@ -77,18 +77,18 @@ export default function CourierLogin() {
                         className='w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition duration-200 disabled:bg-blue-400'
                         disabled={courierLoading}
                     >
-                        {courierLoading ? 'Logging in...' : 'Login'}
+                        {courierLoading ? 'Вход...' : 'Войти'}
                     </button>
                 </form>
 
                 <div className='mt-4 text-center text-sm text-gray-600'>
-                    This login is only for delivery couriers.
+                    Этот вход только для курьеров доставки.
                     <br />
                     <Link
                         href='/'
                         className='text-blue-600 hover:text-blue-800'
                     >
-                        Return to main site
+                        Вернуться на главную
                     </Link>
                 </div>
             </div>

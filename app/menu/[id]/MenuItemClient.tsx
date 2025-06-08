@@ -505,24 +505,37 @@ export default function MenuItemClient({
 
                         <div className='flex items-center mb-4'>
                             <div className='flex'>
-                                {[...Array(5)].map((_, i) => (
-                                    <FaStar
-                                        key={i}
-                                        className={
-                                            i < Math.floor(item.rating || 0)
-                                                ? 'text-yellow-400'
-                                                : 'text-gray-300'
-                                        }
-                                    />
+                                {/* Render full stars */}
+                                {[...Array(Math.floor(item.rating || 0))].map(
+                                    (_, i) => (
+                                        <FaStar
+                                            key={i}
+                                            className='text-yellow-400'
+                                        />
+                                    )
+                                )}
+
+                                {/* Render half star if needed */}
+                                {(item.rating || 0) % 1 >= 0.5 && (
+                                    <FaStarHalfAlt className='text-yellow-400' />
+                                )}
+
+                                {/* Render empty stars to complete 5 stars */}
+                                {[
+                                    ...Array(
+                                        5 -
+                                            Math.floor(item.rating || 0) -
+                                            ((item.rating || 0) % 1 >= 0.5
+                                                ? 1
+                                                : 0)
+                                    ),
+                                ].map((_, i) => (
+                                    <FaStar key={i} className='text-gray-300' />
                                 ))}
-                                {/* Render a half star if needed */}
-                                {Math.floor(item.rating || 0) < 5 &&
-                                    (item.rating || 0) % 1 > 0 && (
-                                        <FaStarHalfAlt className='text-yellow-400' />
-                                    )}
+
                                 <span className='ml-2 text-sm text-gray-600'>
-                                    {item.rating || 0} ({reviews.length}{' '}
-                                    отзывов)
+                                    {(item.rating || 0).toFixed(1)} (
+                                    {reviews.length} отзывов)
                                 </span>
                             </div>
 
@@ -636,9 +649,13 @@ export default function MenuItemClient({
                                                                     }
                                                                 </div>
                                                                 <div className='flex items-center'>
+                                                                    {/* Render full stars */}
                                                                     {[
                                                                         ...Array(
-                                                                            5
+                                                                            Math.floor(
+                                                                                review.rating ||
+                                                                                    0
+                                                                            )
                                                                         ),
                                                                     ].map(
                                                                         (
@@ -649,13 +666,52 @@ export default function MenuItemClient({
                                                                                 key={
                                                                                     i
                                                                                 }
-                                                                                className={
-                                                                                    i <
-                                                                                    (review.rating ||
-                                                                                        5)
-                                                                                        ? 'text-yellow-400'
-                                                                                        : 'text-gray-300'
+                                                                                className='text-yellow-400'
+                                                                                size={
+                                                                                    14
                                                                                 }
+                                                                            />
+                                                                        )
+                                                                    )}
+
+                                                                    {/* Render half star if needed */}
+                                                                    {(review.rating ||
+                                                                        0) %
+                                                                        1 >=
+                                                                        0.5 && (
+                                                                        <FaStarHalfAlt
+                                                                            className='text-yellow-400'
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                        />
+                                                                    )}
+
+                                                                    {/* Render empty stars to complete 5 stars */}
+                                                                    {[
+                                                                        ...Array(
+                                                                            5 -
+                                                                                Math.floor(
+                                                                                    review.rating ||
+                                                                                        0
+                                                                                ) -
+                                                                                ((review.rating ||
+                                                                                    0) %
+                                                                                    1 >=
+                                                                                0.5
+                                                                                    ? 1
+                                                                                    : 0)
+                                                                        ),
+                                                                    ].map(
+                                                                        (
+                                                                            _,
+                                                                            i
+                                                                        ) => (
+                                                                            <FaStar
+                                                                                key={
+                                                                                    i
+                                                                                }
+                                                                                className='text-gray-300'
                                                                                 size={
                                                                                     14
                                                                                 }

@@ -39,7 +39,10 @@ export default function MenuItem({
             description,
             price,
             quantity,
-            image: imageUrl,
+            // Store both the image reference and the full URL
+            image:
+                images && images.length > 0 ? String(images[0].id) : undefined,
+            imageUrl: imageUrl, // Store the full image URL
             categoryId,
         });
     };

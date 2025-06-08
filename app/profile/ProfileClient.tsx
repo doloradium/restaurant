@@ -14,8 +14,18 @@ import {
     FaSignOutAlt,
     FaTrash,
     FaPlus,
+    FaCheck,
+    FaClock,
+    FaTruck,
+    FaUtensils,
+    FaTimes,
+    FaShoppingCart,
+    FaRedo,
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { format, isValid, parseISO } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { useCart } from '@/app/CartProvider';
 
 interface Address {
     id: number;
@@ -26,6 +36,30 @@ interface Address {
     entrance?: string | null;
     floor?: string | null;
     intercom?: string | null;
+}
+
+interface MenuItem {
+    id: number;
+    name: string;
+    price: number;
+}
+
+interface OrderItem {
+    id: number;
+    quantity: number;
+    item: MenuItem;
+}
+
+interface Order {
+    id: number;
+    status: string;
+    isPaid: boolean;
+    paymentType: string;
+    createdAt: string;
+    deliveryTime: string;
+    orderItems: OrderItem[];
+    address?: Address;
+    total?: number;
 }
 
 interface User {
@@ -49,10 +83,16 @@ interface ProfileClientProps {
 
 export default function ProfileClient({ user }: ProfileClientProps) {
     const router = useRouter();
+    const { setCartItems, clearCart } = useCart();
     const [activeTab, setActiveTab] = useState('profile');
     const [editMode, setEditMode] = useState(false);
     const [addresses, setAddresses] = useState<Address[]>(user.addresses || []);
     const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+    const [repeatOrderLoading, setRepeatOrderLoading] = useState<number | null>(
+        null
+    );
     const [formData, setFormData] = useState({
         name: user.name,
         surname: user.surname,
@@ -60,10 +100,27 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         phoneNumber: user.phoneNumber,
     });
 
+    // Проверяем URL параметры при монтировании компонента
+    useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const tabParam = searchParams.get('tab');
+
+        if (tabParam && ['profile', 'orders'].includes(tabParam)) {
+            setActiveTab(tabParam);
+        }
+    }, []);
+
     // Загружаем адреса пользователя при монтировании компонента
     useEffect(() => {
         fetchUserAddresses();
     }, []);
+
+    // Загружаем заказы пользователя при переключении на вкладку истории заказов
+    useEffect(() => {
+        if (activeTab === 'orders') {
+            fetchUserOrders();
+        }
+    }, [activeTab]);
 
     // Функция для загрузки адресов пользователя
     const fetchUserAddresses = async () => {
@@ -82,6 +139,109 @@ export default function ProfileClient({ user }: ProfileClientProps) {
             toast.error('Не удалось загрузить адреса');
         } finally {
             setIsLoadingAddresses(false);
+        }
+    };
+
+    // Функция для загрузки заказов пользователя
+    const fetchUserOrders = async () => {
+        try {
+            setIsLoadingOrders(true);
+            const response = await fetch(`/api/orders?userId=${user.id}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user orders');
+            }
+
+            const data = await response.json();
+
+            // Calculate total for each order
+            const ordersWithTotal = data.map((order: Order) => {
+                const total = order.orderItems.reduce(
+                    (sum: number, item: OrderItem) =>
+                        sum + item.item.price * item.quantity,
+                    0
+                );
+                return { ...order, total };
+            });
+
+            setOrders(ordersWithTotal);
+        } catch (error) {
+            console.error('Error fetching user orders:', error);
+            toast.error('Не удалось загрузить историю заказов');
+        } finally {
+            setIsLoadingOrders(false);
+        }
+    };
+
+    // Функция для форматирования даты
+    const formatDate = (dateString: string) => {
+        try {
+            if (!dateString) return 'Дата недоступна';
+
+            // Try to parse the date
+            const parsedDate = parseISO(dateString);
+
+            // Check if the date is valid
+            if (!isValid(parsedDate)) {
+                console.error('Invalid date:', dateString);
+                return 'Дата недоступна';
+            }
+
+            return format(parsedDate, 'dd MMMM yyyy, HH:mm', { locale: ru });
+        } catch (error) {
+            console.error('Error formatting date:', error, dateString);
+            return 'Дата недоступна';
+        }
+    };
+
+    // Функция для отображения статуса заказа
+    const getStatusDisplay = (status: string) => {
+        switch (status) {
+            case 'PENDING':
+                return {
+                    text: 'Ожидает оплаты',
+                    icon: <FaClock className='text-yellow-500' />,
+                };
+            case 'CONFIRMED':
+                return {
+                    text: 'Подтвержден',
+                    icon: <FaCheck className='text-green-500' />,
+                };
+            case 'COOKING':
+                return {
+                    text: 'Готовится',
+                    icon: <FaUtensils className='text-orange-500' />,
+                };
+            case 'READY_FOR_DELIVERY':
+                return {
+                    text: 'Готов к доставке',
+                    icon: <FaHome className='text-blue-500' />,
+                };
+            case 'DELIVERING':
+                return {
+                    text: 'В пути',
+                    icon: <FaTruck className='text-purple-500' />,
+                };
+            case 'COMPLETED':
+                return {
+                    text: 'Доставлен',
+                    icon: <FaCheck className='text-green-500' />,
+                };
+            case 'DELIVERED':
+                return {
+                    text: 'Доставлен',
+                    icon: <FaCheck className='text-green-500' />,
+                };
+            case 'CANCELED':
+                return {
+                    text: 'Отменен',
+                    icon: <FaTimes className='text-red-500' />,
+                };
+            default:
+                return {
+                    text: status,
+                    icon: <FaClock className='text-gray-500' />,
+                };
         }
     };
 
@@ -197,6 +357,36 @@ export default function ProfileClient({ user }: ProfileClientProps) {
         } catch (error) {
             toast.error('Ошибка выхода из системы');
             console.error('Error logging out:', error);
+        }
+    };
+
+    // Функция для повторения заказа
+    const handleRepeatOrder = async (order: Order) => {
+        try {
+            setRepeatOrderLoading(order.id);
+
+            // Очищаем корзину
+            await clearCart();
+
+            // Добавляем элементы заказа в корзину
+            const newCartItems = order.orderItems.map((item) => ({
+                itemId: item.item.id,
+                quantity: item.quantity,
+                item: item.item,
+            }));
+
+            // Устанавливаем новые элементы корзины
+            await setCartItems(newCartItems);
+
+            // Показываем уведомление
+            toast.success('Товары добавлены в корзину');
+
+            // Перенаправляем пользователя на страницу корзины
+            router.push('/cart');
+        } catch (error) {
+            console.error('Error repeating order:', error);
+            toast.error('Не удалось добавить товары в корзину');
+            setRepeatOrderLoading(null);
         }
     };
 
@@ -459,10 +649,12 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                                                                 {
                                                                                     address.city
                                                                                 }
+
                                                                                 ,{' '}
                                                                                 {
                                                                                     address.street
                                                                                 }
+
                                                                                 ,{' '}
                                                                                 {
                                                                                     address.houseNumber
@@ -531,18 +723,215 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                                         </h1>
                                     </div>
                                     <div className='p-6'>
-                                        <div className='text-center py-8'>
-                                            <p className='text-gray-500 mb-4'>
-                                                Вы еще не сделали ни одного
-                                                заказа.
-                                            </p>
-                                            <Link
-                                                href='/menu'
-                                                className='bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition duration-200'
-                                            >
-                                                Сделайте первый заказ
-                                            </Link>
-                                        </div>
+                                        {isLoadingOrders ? (
+                                            <div className='flex justify-center my-4'>
+                                                <div className='animate-spin h-8 w-8 border-2 border-red-600 rounded-full border-t-transparent'></div>
+                                            </div>
+                                        ) : orders.length > 0 ? (
+                                            <div className='space-y-6'>
+                                                {orders.map((order) => (
+                                                    <div
+                                                        key={order.id}
+                                                        className='border border-gray-200 rounded-lg overflow-hidden'
+                                                    >
+                                                        <div className='bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center'>
+                                                            <div>
+                                                                <span className='text-gray-500'>
+                                                                    Заказ №
+                                                                    {order.id}
+                                                                </span>
+                                                                <div className='text-sm text-gray-500 mt-1'>
+                                                                    от{' '}
+                                                                    {formatDate(
+                                                                        order.createdAt
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className='flex items-center'>
+                                                                {
+                                                                    getStatusDisplay(
+                                                                        order.status
+                                                                    ).icon
+                                                                }
+                                                                <span className='ml-2 font-medium'>
+                                                                    {
+                                                                        getStatusDisplay(
+                                                                            order.status
+                                                                        ).text
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className='p-4'>
+                                                            <div className='mb-4'>
+                                                                <h3 className='font-medium text-gray-800 mb-2'>
+                                                                    Состав
+                                                                    заказа:
+                                                                </h3>
+                                                                <ul className='space-y-2'>
+                                                                    {order.orderItems.map(
+                                                                        (
+                                                                            item
+                                                                        ) => (
+                                                                            <li
+                                                                                key={
+                                                                                    item.id
+                                                                                }
+                                                                                className='flex justify-between'
+                                                                            >
+                                                                                <div>
+                                                                                    <span className='text-gray-800'>
+                                                                                        {
+                                                                                            item
+                                                                                                .item
+                                                                                                .name
+                                                                                        }
+                                                                                    </span>
+                                                                                    <span className='text-gray-500 ml-2'>
+                                                                                        ×{' '}
+                                                                                        {
+                                                                                            item.quantity
+                                                                                        }
+                                                                                    </span>
+                                                                                </div>
+                                                                                <span className='text-gray-800'>
+                                                                                    {(
+                                                                                        item
+                                                                                            .item
+                                                                                            .price *
+                                                                                        item.quantity
+                                                                                    ).toFixed(
+                                                                                        2
+                                                                                    )}{' '}
+                                                                                    ₽
+                                                                                </span>
+                                                                            </li>
+                                                                        )
+                                                                    )}
+                                                                </ul>
+                                                                <div className='mt-3 pt-3 border-t border-gray-100 flex justify-between'>
+                                                                    <span className='font-medium'>
+                                                                        Итого:
+                                                                    </span>
+                                                                    <span className='font-bold text-lg'>
+                                                                        {order.total?.toFixed(
+                                                                            2
+                                                                        )}{' '}
+                                                                        ₽
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className='mt-4 pt-4 border-t border-gray-200'>
+                                                                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                                                                    <div>
+                                                                        <h3 className='font-medium text-gray-800 mb-1'>
+                                                                            Способ
+                                                                            оплаты:
+                                                                        </h3>
+                                                                        <p className='text-gray-700'>
+                                                                            {order.paymentType ===
+                                                                            'CASH'
+                                                                                ? 'Наличными при получении'
+                                                                                : 'Картой онлайн'}
+                                                                            {order.isPaid
+                                                                                ? ' (Оплачено)'
+                                                                                : ' (Не оплачено)'}
+                                                                        </p>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <h3 className='font-medium text-gray-800 mb-1'>
+                                                                            Доставка:
+                                                                        </h3>
+                                                                        <p className='text-gray-700'>
+                                                                            {formatDate(
+                                                                                order.deliveryTime
+                                                                            )}
+                                                                        </p>
+                                                                        {order.address && (
+                                                                            <p className='text-gray-700 mt-1'>
+                                                                                {
+                                                                                    order
+                                                                                        .address
+                                                                                        .city
+                                                                                }
+
+                                                                                ,{' '}
+                                                                                {
+                                                                                    order
+                                                                                        .address
+                                                                                        .street
+                                                                                }
+
+                                                                                ,{' '}
+                                                                                {
+                                                                                    order
+                                                                                        .address
+                                                                                        .houseNumber
+                                                                                }
+                                                                                {order
+                                                                                    .address
+                                                                                    .apartment &&
+                                                                                    `, кв. ${order.address.apartment}`}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className='mt-4 pt-4 border-t border-gray-200 flex justify-end'>
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleRepeatOrder(
+                                                                                order
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            repeatOrderLoading ===
+                                                                            order.id
+                                                                        }
+                                                                        className={`flex items-center px-4 py-2 ${
+                                                                            repeatOrderLoading ===
+                                                                            order.id
+                                                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                                                : 'bg-red-600 hover:bg-red-700'
+                                                                        } text-white rounded-md transition-colors`}
+                                                                    >
+                                                                        {repeatOrderLoading ===
+                                                                        order.id ? (
+                                                                            <>
+                                                                                <span className='mr-2 inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></span>
+                                                                                Обработка...
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <FaRedo className='mr-2' />{' '}
+                                                                                Повторить
+                                                                                заказ
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className='text-center py-8'>
+                                                <p className='text-gray-500 mb-4'>
+                                                    Вы еще не сделали ни одного
+                                                    заказа.
+                                                </p>
+                                                <Link
+                                                    href='/menu'
+                                                    className='bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition duration-200'
+                                                >
+                                                    Сделайте первый заказ
+                                                </Link>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
