@@ -32,22 +32,18 @@ export async function POST(request: Request) {
 
         const uploadedImages = [];
 
-        // Process each file
         for (const file of files) {
             const bytes = await file.arrayBuffer();
             const buffer = Buffer.from(bytes);
 
-            // Create a unique filename with original extension
             const fileExtension = file.name.split('.').pop();
             const uniqueFilename = `${Date.now()}-${Math.random()
                 .toString(36)
                 .substring(2, 15)}.${fileExtension}`;
             const imagePath = join(uploadDir, uniqueFilename);
 
-            // Write the file
             await writeFile(imagePath, buffer);
 
-            // Store in database
             const imageUrl = `/images/uploads/${uniqueFilename}`;
             const image = await prisma.image.create({
                 data: {

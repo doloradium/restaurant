@@ -106,7 +106,7 @@ export default function Header() {
                 <div className='flex justify-between items-center'>
                     {/* Логотип */}
                     <Link href='/' className='text-2xl font-bold text-red-600'>
-                        Ресторан "База"
+                        Ресторан "Mosaic Sushi"
                     </Link>
 
                     {/* Кнопка мобильного меню */}

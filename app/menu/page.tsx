@@ -10,18 +10,15 @@ export default function MenuPage() {
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Get the category from searchParams
     const category = searchParams.get('category') || '';
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                // Make sure we have a proper base URL
                 const baseUrl =
                     process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-                // Fetch categories and items in parallel
                 const [categoriesRes, itemsRes] = await Promise.all([
                     fetch(`${baseUrl}/api/categories`, { cache: 'no-store' }),
                     fetch(`${baseUrl}/api/items?limit=1000`, {

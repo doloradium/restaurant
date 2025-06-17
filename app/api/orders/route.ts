@@ -29,8 +29,6 @@ export async function POST(req: NextRequest) {
         // Create the order with the addressId and deliveryTime
         const order = await dbHelpers.order.create({
             data: {
-                userId,
-                addressId,
                 paymentType,
                 status: initialStatus,
                 isPaid: false, // Always start as not paid, will be updated by payment process
@@ -38,9 +36,15 @@ export async function POST(req: NextRequest) {
                 deliveryTime: new Date(deliveryTime),
                 orderItems: {
                     create: items.map((item: any) => ({
-                        itemId: item.itemId,
+                        itemId: Number(item.itemId),
                         quantity: item.quantity,
                     })),
+                },
+                address: {
+                    connect: { id: Number(addressId) },
+                },
+                user: {
+                    connect: { id: Number(userId) },
                 },
             },
             include: {

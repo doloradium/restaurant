@@ -75,7 +75,6 @@ export default function CourierDashboard() {
             const data = await response.json();
             console.log('Fetched orders data:', data.orders);
 
-            // Debug date fields
             if (data.orders && data.orders.length > 0) {
                 console.log(
                     'First order deliveryTime:',

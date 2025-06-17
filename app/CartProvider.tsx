@@ -65,7 +65,6 @@ export default function CartProvider({
             );
 
             if (existingItem) {
-                // If item already exists, update quantity
                 const updatedCart = prevCart.map((cartItem) =>
                     cartItem.id === item.id
                         ? {
@@ -76,12 +75,10 @@ export default function CartProvider({
                 );
                 return updatedCart;
             } else {
-                // Add new item to cart
                 return [...prevCart, item];
             }
         });
 
-        // Show toast notification outside of setState
         const isExisting = cart.some((cartItem) => cartItem.id === item.id);
         if (isExisting) {
             toast.success('Количество обновлено');

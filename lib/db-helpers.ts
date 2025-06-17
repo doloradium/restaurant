@@ -87,6 +87,9 @@ export const dbHelpers = {
                             address: {
                                 connect: { id: Number(params.data.addressId) },
                             },
+                            user: {
+                                connect: { id: Number(params.data.userId) },
+                            },
                         };
                         // Remove the addressId
                         delete data.addressId;

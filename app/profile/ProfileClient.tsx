@@ -154,7 +154,6 @@ export default function ProfileClient({ user }: ProfileClientProps) {
 
             const data = await response.json();
 
-            // Calculate total for each order
             const ordersWithTotal = data.map((order: Order) => {
                 const total = order.orderItems.reduce(
                     (sum: number, item: OrderItem) =>

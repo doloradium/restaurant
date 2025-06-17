@@ -10,7 +10,7 @@ const AboutPage = () => {
                 {/* Hero Section */}
                 <div className='text-center mb-16'>
                     <h1 className='text-4xl md:text-5xl font-bold text-gray-900 mb-6'>
-                        О ресторане "База"
+                        О ресторане "Mosaic Sushi"
                     </h1>
                     <p className='text-xl text-gray-600 max-w-3xl mx-auto'>
                         Мы создаем незабываемые кулинарные впечатления с 2010
@@ -25,8 +25,8 @@ const AboutPage = () => {
                     </h2>
                     <div className='prose max-w-none text-gray-700'>
                         <p className='mb-4'>
-                            Ресторан "База" был основан в 2010 году с целью
-                            создать уютное место, где каждый гость будет
+                            Ресторан "Mosaic Sushi" был основан в 2010 году с
+                            целью создать уютное место, где каждый гость будет
                             чувствовать себя как дома. Начиная с небольшого
                             семейного кафе, мы выросли в популярный ресторан,
                             сохранив при этом наши ценности и философию.

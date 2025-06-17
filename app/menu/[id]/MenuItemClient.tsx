@@ -316,12 +316,10 @@ export default function MenuItemClient({
             toast.success('Отзыв успешно добавлен!');
             setIsReviewModalOpen(false);
 
-            // Refresh the page to show the new review
             router.refresh();
         } catch (error: any) {
             console.error('Error submitting review:', error);
 
-            // Show a more descriptive error message
             let errorMessage = 'Не удалось отправить отзыв.';
 
             if (

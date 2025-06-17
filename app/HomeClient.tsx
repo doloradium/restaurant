@@ -16,7 +16,6 @@ export default function HomeClient({
 }) {
     return (
         <div>
-            {/* Hero Section */}
             <section className='relative h-[70vh] flex items-center'>
                 <div className='absolute inset-0 z-0'>
                     <div className='relative h-full w-full'>
@@ -27,7 +26,7 @@ export default function HomeClient({
                 <div className='container mx-auto px-4 relative z-20'>
                     <div className='max-w-2xl'>
                         <h1 className='text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4'>
-                            Попробуйте аутентичную японскую кухню
+                            Попробуйте лучшую кухню в городе
                         </h1>
                         <p className='text-xl text-gray-200 mb-8'>
                             Насладитесь мастерством наших шеф-поваров и самыми
@@ -51,7 +50,6 @@ export default function HomeClient({
                 </div>
             </section>
 
-            {/* Categories Section */}
             <section className='py-16 bg-gray-50'>
                 <div className='container mx-auto px-4'>
                     <div className='text-center mb-12'>
@@ -59,8 +57,8 @@ export default function HomeClient({
                             Категории меню
                         </h2>
                         <p className='text-gray-600 max-w-2xl mx-auto'>
-                            Ознакомьтесь с разнообразием японской кухни: от
-                            традиционных суши до современных фьюжн-блюд
+                            Ознакомьтесь с разнообразием нашей кухни: от
+                            традиционных деликатесов до современных фьюжн-блюд
                         </p>
                     </div>
                     <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8'>
@@ -81,7 +79,6 @@ export default function HomeClient({
                 </div>
             </section>
 
-            {/* Featured Products Section */}
             <section className='py-16'>
                 <div className='container mx-auto px-4'>
                     <div className='text-center mb-12'>
@@ -118,7 +115,6 @@ export default function HomeClient({
                 </div>
             </section>
 
-            {/* Testimonials Section */}
             <section className='py-16 bg-gray-900 text-white'>
                 <div className='container mx-auto px-4'>
                     <div className='text-center mb-12'>
@@ -134,15 +130,13 @@ export default function HomeClient({
                 </div>
             </section>
 
-            {/* CTA Section */}
             <section className='py-16 bg-red-600 text-white'>
                 <div className='container mx-auto px-4 text-center'>
                     <h2 className='text-3xl font-bold mb-6'>
                         Готовы сделать заказ?
                     </h2>
                     <p className='text-xl mb-8 max-w-2xl mx-auto'>
-                        Попробуйте настоящий вкус Японии — с доставкой к вам
-                        домой
+                        Попробуйте наши блюда с доставкой к вам домой
                     </p>
                     <Link
                         href='/menu'
